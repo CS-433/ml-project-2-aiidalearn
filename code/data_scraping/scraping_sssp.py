@@ -48,23 +48,65 @@ sssp_dict = {
     'Dojo': 'Dojo',
     'Wentzcovitch': 'RE_Wentz_plus_nitrogen'}
 
+# ULTRASOFT POTENTIALS
+US = [
+      'pslib.1.0.0_PBE_US',
+      'pslib.1.0.0_PBE_PAW',
+      'pslib.0.3.1_PBE_US',
+      'pslib.0.3.1_PBE_PAW',
+      'GBRV_1.2',
+      'GBRV_1.4',
+      'GBRV_1.5',
+      ]
 
+# NORMCONSERVING POTENTIALS
+NC = [
+      'SG15',
+      'SG15_1.1',
+      'Dojo'
+      ]
+# UNCLASSIFIED POTENTIALS
+OTHER = [
+    'Goedecker',
+    'THEOS',
+    'RE_Wentz_plus_nitrogen'
+    ]
+
+ 
+
+
+def get_dual(potential_key, element):
+    
+    if element == ('Fe' or 'Mn'):
+        return 12.0
+    
+    
+    elif potential_key in US:
+        return 8.0
+    
+    elif potential_key in NC:
+        return 4.0
+    
+    else:
+        return 4.0 #TODO: Check for correct dual
 
 
 def extract_dE_values(raw_data, potential_key='GBRV_1.2'):
     values = []
+    missing = 0
     try:
         nodes_list = raw_data['data']['Y_series']['delta'][potential_key]['4.0']['points']
     except:
         nodes_list = raw_data['data']['Y_series']['delta'][potential_key]['8.0']['points']
     for k in range(len(nodes_list)):
         node = nodes_list[k]
-        if node == None: #TODO: Choose better dummy value
-            values.append(0)
+        if node == None:
+            values.append(-1)
+            missing += 1
         else:
             values.append(node['value'])
     
-    return np.array(values)
+    return np.array(values), missing
 
 
 def extract_Ecutoff_values(raw_data):
@@ -79,8 +121,11 @@ def extract_element_data(element, potential_key):
     raw_data = json.loads(text)
     
     # EXTRACTING THE VALUES OF INTEREST
-    dEs = extract_dE_values(raw_data, potential_key)
+    element_missing = 0
+    dEs, missing = extract_dE_values(raw_data, potential_key)
     Ecutoffs = extract_Ecutoff_values(raw_data)
+    element_missing += missing
+    dual = get_dual(potential_key, element)
     
     # INITIALIZE ELEMENT COLUMN
     elements = [element for k in range(len(dEs))]
@@ -88,10 +133,11 @@ def extract_element_data(element, potential_key):
     # CONSTRUCT DATAFRAME
     df_element = pd.DataFrame(
             {'element' : elements,
-             'ecutoff' : Ecutoffs,
+             'ecutwfc' : Ecutoffs,
+             'ecutrho' : dual*Ecutoffs,
              'dE' : dEs
                 })
-    return df_element
+    return df_element, element_missing
 
 if __name__ == '__main__':
     
@@ -100,49 +146,51 @@ if __name__ == '__main__':
     text_table = url_table.text
     sssp_table = json.loads(text_table)
     periodic_table_keys = list(sssp_table.keys())
-    remove_elements = ['Ce',
-                       'Dy',
-                       'Er',
-                       'Eu',
-                       'F',
-                       'Gd',
-                       'Ho',
-                       'La',
-                       'Lu',
-                       'N', #Potential not found
-                       'Nd',
-                       'Pm',
-                       'Pr',
-                       'Sm',
-                       'Tb',
-                       'Tm',
-                       'Yb'
+    remove_elements = ['Ce', #Lanthanide
+                       'Dy', #Lanthanide
+                       'Er', #Lanthanide
+                       'Eu', #Lanthanide
+                       'F' , #Potential not found
+                       'Gd', #Lanthanide
+                       'Ho', #Lanthanide
+                       'La', #Lanthanide
+                       'Lu', #Lanthanide
+                       'N' , #Potential not found
+                       'Nd', #Lanthanide
+                       'Pm', #Lanthanide
+                       'Pr', #Lanthanide
+                       'Sm', #Lanthanide
+                       'Tb', #Lanthanide
+                       'Tm', #Lanthanide
+                       'Yb'  #Lanthanide
                        ]
     
     for element in remove_elements:
         periodic_table_keys.remove(element)
  
     element_dfs = []
+    global_missing = 0
     for element in periodic_table_keys:
         print("-----", element, "-----")
         potential_shortname = sssp_table[element]['pseudopotential']
         # print(potential_shortname)
         potential_key = sssp_dict[potential_shortname]
-        element_dfs.append(extract_element_data(element, potential_key))
-        # try:
-        #     element_dfs.append(extract_element_data(element))
-            
-        # except:
-        #     print("*EXTRACTION ERROR*")
-        #     print(element)
-            
+        element_df, element_missing = extract_element_data(element, potential_key)
+        element_dfs.append(element_df)
+        global_missing += element_missing
+        
+        print("PSEUDO: ", potential_key)
+        print(element_missing, " MISSING VALUES")
+        print("--------------")
+
     df = pd.concat(element_dfs)
-            
     DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "data/sssp_data.csv")
     
     df.to_csv(DATA_PATH)
     print("-----FINISHED PARSING-----")
-    print("ISSUES WITH ", len(remove_elements), " ELEMENTS")
+    print("* ISSUES WITH ", len(remove_elements), " ELEMENTS:")
+    print(remove_elements)
+    print("* ", global_missing, " MISSING VALUES")
     print("--------------------------")
     
     
