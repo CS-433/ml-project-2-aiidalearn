@@ -52,8 +52,8 @@ if __name__ == "__main__":
         "Te" : 1
         }
     
-    filepath = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "data/toy_data.json")
-    savepath = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "data/toy_data.csv")
+    filepath = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "data/data.json")
+    savepath = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "data/toy_data2.csv")
     
     parse_json(filepath, savepath, elements_nbrs)
     
