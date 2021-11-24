@@ -91,26 +91,33 @@ def get_dual(potential_key, element):
         return 4.0 #TODO: Check for correct dual
 
 
-def extract_dE_values(raw_data, potential_key='GBRV_1.2'):
-    values = []
+def extract_values(raw_data, potential_key='GBRV_1.2'):
+    E_val = []
     missing = 0
+    
+    
     try:
-        nodes_list = raw_data['data']['Y_series']['delta'][potential_key]['4.0']['points']
+        nodes_list = raw_data['data']['Y_series']['cohesive_energy'][potential_key]['4.0']['points']
     except:
-        nodes_list = raw_data['data']['Y_series']['delta'][potential_key]['8.0']['points']
+        nodes_list = raw_data['data']['Y_series']['cohesive_energy'][potential_key]['8.0']['points']
+        
     for k in range(len(nodes_list)):
         node = nodes_list[k]
+        # TODO: subtract cohesive_energy with largest cutoff
         if node == None:
-            values.append(-1)
+            E_val.append(-1)
             missing += 1
         else:
-            values.append(node['value'])
+            E_val.append(node['value'])
     
-    return np.array(values), missing
+    Ecutoff_val = raw_data['data']['X_series']['Ecutoff']['values']
+    max_cutoff = max(Ecutoff_val)
+    max_idx = Ecutoff_val.index(max_cutoff)
+    dE_val = np.array(E_val) - E_val[max_idx]
 
+    
+    return dE_val, np.array(Ecutoff_val), missing
 
-def extract_Ecutoff_values(raw_data):
-    return np.array(raw_data['data']['X_series']['Ecutoff']['values'])
 
 
 def extract_element_data(element, potential_key):
@@ -122,8 +129,7 @@ def extract_element_data(element, potential_key):
     
     # EXTRACTING THE VALUES OF INTEREST
     element_missing = 0
-    dEs, missing = extract_dE_values(raw_data, potential_key)
-    Ecutoffs = extract_Ecutoff_values(raw_data)
+    dEs, Ecutoffs, missing = extract_values(raw_data, potential_key)
     element_missing += missing
     dual = get_dual(potential_key, element)
     
@@ -146,37 +152,27 @@ if __name__ == '__main__':
     text_table = url_table.text
     sssp_table = json.loads(text_table)
     periodic_table_keys = list(sssp_table.keys())
-    remove_elements = ['Ce', #Lanthanide
-                       'Dy', #Lanthanide
-                       'Er', #Lanthanide
-                       'Eu', #Lanthanide
+    remove_elements = [
                        'F' , #Potential not found
-                       'Gd', #Lanthanide
-                       'Ho', #Lanthanide
-                       'La', #Lanthanide
-                       'Lu', #Lanthanide
                        'N' , #Potential not found
-                       'Nd', #Lanthanide
-                       'Pm', #Lanthanide
-                       'Pr', #Lanthanide
-                       'Sm', #Lanthanide
-                       'Tb', #Lanthanide
-                       'Tm', #Lanthanide
-                       'Yb'  #Lanthanide
                        ]
     
     for element in remove_elements:
         periodic_table_keys.remove(element)
  
     element_dfs = []
+    elements_w_missing = []
     global_missing = 0
     for element in periodic_table_keys:
         print("-----", element, "-----")
         potential_shortname = sssp_table[element]['pseudopotential']
-        # print(potential_shortname)
         potential_key = sssp_dict[potential_shortname]
         element_df, element_missing = extract_element_data(element, potential_key)
         element_dfs.append(element_df)
+        if element_missing:
+            elements_w_missing.append(element)
+        
+        
         global_missing += element_missing
         
         print("PSEUDO: ", potential_key)
@@ -191,6 +187,7 @@ if __name__ == '__main__':
     print("* ISSUES WITH ", len(remove_elements), " ELEMENTS:")
     print(remove_elements)
     print("* ", global_missing, " MISSING VALUES")
+    print("* ELEMENTS WITH MISSING VALUES: ", elements_w_missing)
     print("--------------------------")
     
     
