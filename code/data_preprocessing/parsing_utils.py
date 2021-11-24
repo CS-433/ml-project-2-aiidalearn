@@ -57,17 +57,16 @@ def parse_json(filepath: str, savepath: str, elements_nbrs: Dict[str, int]):
         data = json.load(file)
 
     raw_df = pd.DataFrame(data)
+    raw_df = compute_delta_E(raw_df)
     rel_cols = [
         "ecutrho",
         "k_density",
         "ecutwfc",
         "converged",
         "accuracy",
-        "total_energy",
+        "delta_E",
     ]
     df = raw_df[rel_cols]
-
-    df = compute_delta_E(df)
 
     for element in PERIODIC_TABLE_KEYS:
         df = df.assign(**{element: 0.0})
