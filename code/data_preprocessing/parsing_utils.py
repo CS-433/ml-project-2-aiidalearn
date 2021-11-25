@@ -6,9 +6,11 @@ Created on Tue Nov 23 14:32:26 2021
 @author: philipp
 """
 
-import pandas as pd
 import json
 import os
+from typing import Dict
+
+import pandas as pd
 import requests
 
 # LOADING ALL ELEMENT KEYS
@@ -18,57 +20,56 @@ URL_TABLE = requests.get(
 TEXT_TABLE = URL_TABLE.text
 SSSP_TABLE = json.loads(TEXT_TABLE)
 PERIODIC_TABLE_KEYS = list(SSSP_TABLE.keys())
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data/"
+)
 
 
-def encode_structure(df, elements_nbrs):
+def encode_structure(df: pd.DataFrame, elements_nbrs: Dict[str, int]):
     total_atoms = sum(list(elements_nbrs.values()))
 
-    elements = list(elements_nbrs.keys())
-
-    for element in elements:
-        df[element] = elements_nbrs[element] / total_atoms
+    for elt, nb_elt in elements_nbrs.items():
+        df = df.assign(**{elt: nb_elt / total_atoms})
 
     return df
 
 
-def compute_delta_E(df):
-    converged_rows = df["converged"] == True
+def compute_delta_E(df: pd.DataFrame):
     idx_ref = 0
-    for idx, row in df.loc[converged_rows].iterrows():
+    for idx, row in df.loc[df["converged"]].iterrows():
         if (
-            row["ecutrho"] > df.loc[converged_rows, "ecutrho"][idx_ref]
-            or row["k_density"] < df.loc[converged_rows, "k_density"][idx_ref]
-            or row["ecutwfc"] > df.loc[converged_rows, "ecutwfc"][idx_ref]
+            row["ecutwfc"] > df.loc[df["converged"], "ecutwfc"][idx_ref]
+            or row["ecutrho"] > df.loc[df["converged"], "ecutrho"][idx_ref]
+            or row["k_density"] < df.loc[df["converged"], "k_density"][idx_ref]
         ):
             idx_ref = idx
 
-    ref_energy = df.loc[converged_rows, "total_energy"][idx_ref]
+    ref_energy = df.loc[df["converged"], "total_energy"][idx_ref]
     print(f"Ref energy: {ref_energy} (found at index {idx_ref})")
 
-    df["delta_E"] = df["total_energy"] - ref_energy
+    df = df.assign(delta_E=df["total_energy"] - ref_energy)
 
     return df
 
 
-def parse_json(filepath, savepath, elements_nbrs):
+def parse_json(filepath: str, savepath: str, elements_nbrs: Dict[str, int]):
     with open(filepath) as file:
         data = json.load(file)
 
     raw_df = pd.DataFrame(data)
+    raw_df = compute_delta_E(raw_df)
     rel_cols = [
         "ecutrho",
         "k_density",
         "ecutwfc",
         "converged",
         "accuracy",
-        "total_energy",
+        "delta_E",
     ]
     df = raw_df[rel_cols]
 
-    df = compute_delta_E(df)
-
     for element in PERIODIC_TABLE_KEYS:
-        df[element] = 0.0
+        df = df.assign(**{element: 0.0})
 
     df = encode_structure(df, elements_nbrs)
 
@@ -76,22 +77,19 @@ def parse_json(filepath, savepath, elements_nbrs):
 
 
 if __name__ == "__main__":
-    struct_name_list = ["Ge-1_Se-1", "Ge-1_Te-1"]
-    for structure_name in struct_name_list:
-        elements_nbrs = {
-            elt.split("-")[0]: int(elt.split("-")[1])
-            for elt in structure_name.split("_")
-        }
+    for filename in os.listdir(DATA_DIR):
+        ext = ".json"
+        if filename.endswith(ext):
+            structure_name = filename[: -len(ext)]
+            print(f"Parsing {structure_name}...")
 
-        filepath = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data/" + structure_name + ".json",
-        )
-        savepath = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data/" + structure_name + ".csv",
-        )
+            parse_json(
+                filepath=os.path.join(DATA_DIR, filename),
+                savepath=os.path.join(DATA_DIR, structure_name + ".csv"),
+                elements_nbrs={
+                    elt.split("-")[0]: int(elt.split("-")[1])
+                    for elt in structure_name.split("_")
+                },
+            )
 
-        parse_json(filepath, savepath, elements_nbrs)
-
-        print(structure_name + " done!")
+            print("Done!\n")
