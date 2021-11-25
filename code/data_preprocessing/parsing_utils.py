@@ -14,12 +14,20 @@ import pandas as pd
 import requests
 
 # LOADING ALL ELEMENT KEYS
-URL_TABLE = requests.get(
-    "https://archive.materialscloud.org/record/file?record_id=862&filename=SSSP_1.1.2_PBE_efficiency.json&file_id=a5642f40-74af-4073-8dfd-706d2c7fccc2"
-)
-TEXT_TABLE = URL_TABLE.text
-SSSP_TABLE = json.loads(TEXT_TABLE)
-PERIODIC_TABLE_KEYS = list(SSSP_TABLE.keys())
+# URL_TABLE = requests.get(
+#     "https://archive.materialscloud.org/record/file?record_id=862&filename=SSSP_1.1.2_PBE_efficiency.json&file_id=a5642f40-74af-4073-8dfd-706d2c7fccc2"
+# )
+# TEXT_TABLE = URL_TABLE.text
+# SSSP_TABLE = json.loads(TEXT_TABLE)
+
+PERIODIC_TABLE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "code/data_preprocessing/periodic_table_info.json")
+with open(PERIODIC_TABLE_PATH, 'r') as rf:   
+    PERIODIC_TABLE_INFO = json.load(rf)
+PERIODIC_TABLE_KEYS = list(PERIODIC_TABLE_INFO.keys())
+PTC_COLNAMES = ['PTC' + str(n) for n in range(1, 19)]
+
+
+
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data/"
 )
@@ -29,7 +37,9 @@ def encode_structure(df: pd.DataFrame, elements_nbrs: Dict[str, int]):
     total_atoms = sum(list(elements_nbrs.values()))
 
     for elt, nb_elt in elements_nbrs.items():
-        df = df.assign(**{elt: nb_elt / total_atoms})
+        ptc = PERIODIC_TABLE_INFO[elt]
+        print(elt, ' -> ', ptc)
+        df[ptc] = nb_elt/total_atoms
 
     return df
 
@@ -68,8 +78,9 @@ def parse_json(filepath: str, savepath: str, elements_nbrs: Dict[str, int]):
     ]
     df = raw_df[rel_cols]
 
-    for element in PERIODIC_TABLE_KEYS:
-        df = df.assign(**{element: 0.0})
+
+    for colname in PTC_COLNAMES:
+        df = df.assign(**{colname: 0.0})
 
     df = encode_structure(df, elements_nbrs)
 
