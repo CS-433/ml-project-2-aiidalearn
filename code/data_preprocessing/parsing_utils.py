@@ -8,24 +8,30 @@ Created on Tue Nov 23 14:32:26 2021
 
 import json
 import os
-from typing import Dict
+from enum import Enum
+from typing import Dict, List
 
 import pandas as pd
-import requests
+
+
+def load_json(filepath: str):
+    with open(filepath) as file:
+        data = json.load(file)
+    return data
+
 
 # LOADING ALL ELEMENT KEYS
-# URL_TABLE = requests.get(
-#     "https://archive.materialscloud.org/record/file?record_id=862&filename=SSSP_1.1.2_PBE_efficiency.json&file_id=a5642f40-74af-4073-8dfd-706d2c7fccc2"
-# )
-# TEXT_TABLE = URL_TABLE.text
-# SSSP_TABLE = json.loads(TEXT_TABLE)
+SSSP_PATH = os.path.join(
+    os.path.dirname(__file__), "SSSP_1.1.2_PBE_efficiency.json",
+)
+SSSP_TABLE = load_json(SSSP_PATH)
 
-PERIODIC_TABLE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "code/data_preprocessing/periodic_table_info.json")
-with open(PERIODIC_TABLE_PATH, 'r') as rf:   
-    PERIODIC_TABLE_INFO = json.load(rf)
+PERIODIC_TABLE_PATH = os.path.join(
+    os.path.dirname(__file__), "periodic_table_info.json",
+)
+PERIODIC_TABLE_INFO = load_json(PERIODIC_TABLE_PATH)
 PERIODIC_TABLE_KEYS = list(PERIODIC_TABLE_INFO.keys())
-PTC_COLNAMES = ['PTC' + str(n) for n in range(1, 19)]
-
+PTC_COLNAMES = ["PTC" + str(n) for n in range(1, 19)]
 
 
 DATA_DIR = os.path.join(
@@ -33,13 +39,32 @@ DATA_DIR = os.path.join(
 )
 
 
-def encode_structure(df: pd.DataFrame, elements_nbrs: Dict[str, int]):
+class Encoding(Enum):
+    ATOMIC = "atomic"
+    COLUMN = "column"
+
+
+def encode_structure(
+    df: pd.DataFrame,
+    elements_nbrs: Dict[str, int],
+    encoding: Encoding = Encoding.ATOMIC,
+):
     total_atoms = sum(list(elements_nbrs.values()))
 
+    if encoding == Encoding.COLUMN:
+        for colname in PTC_COLNAMES:
+            df = df.assign(**{colname: 0.0})
+    elif encoding == Encoding.ATOMIC:
+        for element in PERIODIC_TABLE_KEYS:
+            df = df.assign(**{element: 0.0})
+
     for elt, nb_elt in elements_nbrs.items():
-        ptc = PERIODIC_TABLE_INFO[elt]
-        print(elt, ' -> ', ptc)
-        df[ptc] = nb_elt/total_atoms
+        if encoding == Encoding.COLUMN:
+            ptc = PERIODIC_TABLE_INFO[elt]
+            print(elt, " -> ", ptc)
+            df[ptc] = nb_elt / total_atoms
+        elif encoding == Encoding.ATOMIC:
+            df = df.assign(**{elt: nb_elt / total_atoms})
 
     return df
 
@@ -62,7 +87,13 @@ def compute_delta_E(df: pd.DataFrame):
     return df
 
 
-def parse_json(filepath: str, savepath: str, elements_nbrs: Dict[str, int]):
+def parse_json(
+    filepath: str,
+    savepath: str,
+    name: str,
+    elements_nbrs: Dict[str, int],
+    encodings: List[Encoding] = [Encoding.ATOMIC],
+):
     with open(filepath) as file:
         data = json.load(file)
 
@@ -78,13 +109,10 @@ def parse_json(filepath: str, savepath: str, elements_nbrs: Dict[str, int]):
     ]
     df = raw_df[rel_cols]
 
-
-    for colname in PTC_COLNAMES:
-        df = df.assign(**{colname: 0.0})
-
-    df = encode_structure(df, elements_nbrs)
-
-    df.to_csv(savepath)
+    for encoding in encodings:
+        encode_structure(df.copy(), elements_nbrs, encoding).to_csv(
+            os.path.join(savepath, f"{name}_{encoding.value}.csv")
+        )
 
 
 if __name__ == "__main__":
@@ -96,11 +124,13 @@ if __name__ == "__main__":
 
             parse_json(
                 filepath=os.path.join(DATA_DIR, filename),
-                savepath=os.path.join(DATA_DIR, structure_name + ".csv"),
+                savepath=DATA_DIR,
+                name=structure_name,
                 elements_nbrs={
                     elt.split("-")[0]: int(elt.split("-")[1])
                     for elt in structure_name.split("_")
                 },
+                encodings=list(Encoding),
             )
 
             print("Done!\n")
