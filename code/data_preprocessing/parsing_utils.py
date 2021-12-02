@@ -42,6 +42,7 @@ DATA_DIR = os.path.join(
 class Encoding(Enum):
     ATOMIC = "atomic"
     COLUMN = "column"
+    COLUMN_MASS = 'column_mass'
 
 
 def encode_structure(
@@ -50,6 +51,12 @@ def encode_structure(
     encoding: Encoding = Encoding.ATOMIC,
 ):
     total_atoms = sum(list(elements_nbrs.values()))
+    total_mass = 0.0
+    for elt, nb_elt in elements_nbrs.items():
+        ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+        elt_mass = ELEMENT_INFO['mass']
+        total_mass += nb_elt*elt_mass
+
 
     if encoding == Encoding.COLUMN:
         for colname in PTC_COLNAMES:
@@ -57,14 +64,30 @@ def encode_structure(
     elif encoding == Encoding.ATOMIC:
         for element in PERIODIC_TABLE_KEYS:
             df = df.assign(**{element: 0.0})
+    elif encoding == Encoding.COLUMN_MASS:
+        for colname in PTC_COLNAMES:
+            df = df.assign(**{colname: 0.0})
 
     for elt, nb_elt in elements_nbrs.items():
         if encoding == Encoding.COLUMN:
-            ptc = PERIODIC_TABLE_INFO[elt]
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            ptc = ELEMENT_INFO['PTC']
+            print("-----Col encoding-----")
             print(elt, " -> ", ptc)
             df[ptc] = nb_elt / total_atoms
+            print("--------------------")
         elif encoding == Encoding.ATOMIC:
             df = df.assign(**{elt: nb_elt / total_atoms})
+        elif encoding == Encoding.COLUMN_MASS:
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            ptc = ELEMENT_INFO['PTC']
+            elt_mass = ELEMENT_INFO['mass']
+            print("--Col mass encoding---")
+            print(elt, " -> ", ptc)
+            print(f'Mass of {elt}: {elt_mass:.3f}')
+            df[ptc] += nb_elt*elt_mass/total_mass
+            print("----------------------")
+
 
     return df
 
