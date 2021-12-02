@@ -6,7 +6,7 @@ using DFControl
 
 function pull_generate_jobs(nelements, nsites, api_key, args...)
     d = Dict("criteria"   => Dict("nelements" => nelements, "nsites" => nsites),
-             "properties" => ["formula", "cif"])
+             "properties" => ["formula", "cif", "pretty_formula"])
     data = join(["$k=$(HTTP.escapeuri(JSON3.write(v)))" for (k, v) in d], "&")
     
     resp = HTTP.post("https://www.materialsproject.org/rest/v2/query",
