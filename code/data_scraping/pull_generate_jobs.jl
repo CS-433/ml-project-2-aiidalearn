@@ -40,9 +40,9 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
     str = Structures.cif2structure(cif_file)
 
     calc = Calculation[Calculation{QE}(name="scf", exec=Exec(exec="pw.x", dir="/work/theos/THEOS_software/QuantumESPRESSO/q-e-qe-6.7.0/bin", modules=["intel", "intel-mpi", "intel-mkl"]))]
-    Calculations.set_flags!(calc[1].exec, :nk => 10)
+   #Calculations.set_flags!(calc[1].exec, :nk => 10)
     
-    job = Job(name, str, calc, server="fidis", environment ="normal_10nodes")
+    job = Job(name, str, calc, server="fidis", environment ="normal_1node")
     set_pseudos!(job, :sssp_efficiency)
     for ecutwfc in ecutwfcs
         for ecutrho in ecutrhos
