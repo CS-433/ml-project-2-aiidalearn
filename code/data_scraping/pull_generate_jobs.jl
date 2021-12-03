@@ -22,15 +22,12 @@ function pull_generate_jobs(nelements, nsites, api_key, args...)
     for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))
         sysname = sys["pretty_formula"]
         sysdir  = datadir(sysname)
-        if !ispath(sysdir) # This means the system wasn't ran yet
-            @info "Creating run for $sysname."
-            mkpath(sysdir)
-            cifpath = joinpath(sysdir, "$sysname.cif") 
-            write(cifpath, sys["cif"]) #Just save the cif file
-
-            # run the jobs
-            generate_jobs(cifpath, args...)
-        end
+        @info "Creating run for $sysname."
+        mkpath(sysdir)
+        cifpath = joinpath(sysdir, "$sysname.cif") 
+        write(cifpath, sys["cif"]) #Just save the cif file
+        # run the jobs
+        generate_jobs(cifpath, args...)
     end
 end
             
@@ -46,28 +43,32 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
 #Calculations.set_flags!(calc[1].exec, :nk => 10)
     
     job = Job(name, str, calc, server="fidis", environment ="normal_1node")
+    server = Server("fidis")
     set_pseudos!(job, :sssp_efficiency)
+    jobs = Job[]
     for ecutwfc in ecutwfcs
         for ecutrho in ecutrhos
             if ecutrho == ecutwfc
                 continue
             end
             for nk in kpoints
-
-                tj = deepcopy(job)
-                tj.dir = "$name/$ecutwfc/$ecutrho/$nk"
-                tj[:ecutrho] = ecutrho
-                tj[:ecutwfc] = ecutwfc
-                tj[:occupations] = "smearing"
-                tj[:smearing] = "mv"
-                tj[:degauss] = smearing
-                set_kpoints!(tj["scf"], (nk, nk, nk))
-                submit(tj)
+                dir = "$name/$ecutwfc/$ecutrho/$nk"
+                if !ispath(server, dir) || !ispath(server, joinpath(dir, "scf.out"))
+                    tj = deepcopy(job)
+                    tj.dir = dir 
+                    tj[:ecutrho] = ecutrho
+                    tj[:ecutwfc] = ecutwfc
+                    tj[:occupations] = "smearing"
+                    tj[:smearing] = "mv"
+                    tj[:degauss] = smearing
+                    set_kpoints!(tj["scf"], (nk, nk, nk))
+                    push!(jobs, tj)
+                end
             end
         end
     end
+    submit(jobs)
 end
-            
         
 using ArgParse
 
