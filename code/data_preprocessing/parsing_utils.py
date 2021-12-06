@@ -42,7 +42,7 @@ DATA_DIR = os.path.join(
 class Encoding(Enum):
     ATOMIC = "atomic"
     COLUMN = "column"
-    COLUMN_MASS = 'column_mass'
+    COLUMN_MASS = "column_mass"
 
 
 def encode_structure(
@@ -54,40 +54,35 @@ def encode_structure(
     total_mass = 0.0
     for elt, nb_elt in elements_nbrs.items():
         ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-        elt_mass = ELEMENT_INFO['mass']
-        total_mass += nb_elt*elt_mass
+        elt_mass = ELEMENT_INFO["mass"]
+        total_mass += nb_elt * elt_mass
 
-
-    if encoding == Encoding.COLUMN:
+    if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
     elif encoding == Encoding.ATOMIC:
         for element in PERIODIC_TABLE_KEYS:
             df = df.assign(**{element: 0.0})
-    elif encoding == Encoding.COLUMN_MASS:
-        for colname in PTC_COLNAMES:
-            df = df.assign(**{colname: 0.0})
 
     for elt, nb_elt in elements_nbrs.items():
         if encoding == Encoding.COLUMN:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-            ptc = ELEMENT_INFO['PTC']
+            ptc = ELEMENT_INFO["PTC"]
             print("-----Col encoding-----")
             print(elt, " -> ", ptc)
             df[ptc] = nb_elt / total_atoms
             print("--------------------")
-        elif encoding == Encoding.ATOMIC:
-            df = df.assign(**{elt: nb_elt / total_atoms})
         elif encoding == Encoding.COLUMN_MASS:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-            ptc = ELEMENT_INFO['PTC']
-            elt_mass = ELEMENT_INFO['mass']
+            ptc = ELEMENT_INFO["PTC"]
+            elt_mass = ELEMENT_INFO["mass"]
             print("--Col mass encoding---")
             print(elt, " -> ", ptc)
-            print(f'Mass of {elt}: {elt_mass:.3f}')
-            df[ptc] += nb_elt*elt_mass/total_mass
+            print(f"Mass of {elt}: {elt_mass:.3f}")
+            df[ptc] += nb_elt * elt_mass / total_mass
             print("----------------------")
-
+        elif encoding == Encoding.ATOMIC:
+            df = df.assign(**{elt: nb_elt / total_atoms})
 
     return df
 
@@ -116,6 +111,7 @@ def parse_json(
     name: str,
     elements_nbrs: Dict[str, int],
     encodings: List[Encoding] = [Encoding.ATOMIC],
+    inv_k_density: bool = False,
 ):
     with open(filepath) as file:
         data = json.load(file)
@@ -131,6 +127,9 @@ def parse_json(
         "delta_E",
     ]
     df = raw_df[rel_cols]
+
+    if inv_k_density:
+        df["k_density"] = df["k_density"].apply(lambda x: int(round(1 / x)))
 
     for encoding in encodings:
         encode_structure(df.copy(), elements_nbrs, encoding).to_csv(
@@ -154,6 +153,7 @@ if __name__ == "__main__":
                     for elt in structure_name.split("_")
                 },
                 encodings=list(Encoding),
+                inv_k_density=True,
             )
 
             print("Done!\n")
