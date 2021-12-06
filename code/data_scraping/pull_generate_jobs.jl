@@ -40,6 +40,7 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
     calc[1][:calculation] = "scf"
     calc[1][:conv_thr] = 1e-9
     calc[1][:mixing_beta] = 0.4
+    calc[1][:disk_io] = "nowf"
 #Calculations.set_flags!(calc[1].exec, :nk => 10)
     
     job = Job(name, str, calc, server="fidis", environment ="normal_1node")

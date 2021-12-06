@@ -20,7 +20,7 @@ function process_jobs(name, ecutwfcs, ecutrhos, kpoints, server)
                     @warn "Job $jpath crashed, see CRASH file for more info."
                 elseif !ispath(s, joinpath(jpath, "scf.out"))
                     @warn "Something went wrong for job $jpath, resubmitting."
-                    submit(Job(jpath, "imx"))
+                    submit(Job(jpath, server))
                 else
                     outdata = outputdata(jpath, server, ["scf"])
                     if haskey(outdata["scf"], :accuracy) && haskey(outdata["scf"], :fermi) && haskey(outdata["scf"], :timing)
