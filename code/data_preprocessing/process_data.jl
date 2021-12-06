@@ -4,9 +4,9 @@ using DFControl
 
 using Dates
 using JSON3
-function process_jobs(name, ecutwfcs, ecutrhos, kpoints)
+function process_jobs(name, ecutwfcs, ecutrhos, kpoints, server)
     results = []
-    s = Server("fidis")
+    s = Server(server)
     for ecutwfc in ecutwfcs
         for ecutrho in ecutrhos
             if ecutrho == ecutwfc
@@ -14,28 +14,32 @@ function process_jobs(name, ecutwfcs, ecutrhos, kpoints)
             end
             for nk in kpoints
                 @info "Processing $name, $ecutwfc, $ecutrho, $nk"
-                tj = Job("$name/$ecutwfc/$ecutrho/$nk", "fidis")
-               
-                if ispath(s, joinpath(tj, "CRASH"))
-                    @warn "Job $(tj.dir) crashed, see CRASH file for more info."
-                elseif !ispath(s, joinpath(tj, "scf.out"))
-                    @warn "Something went wrong for job $(tj.dir), resubmitting."
-                    submit(tj)
+                # tj = Job("$name/$ecutwfc/$ecutrho/$nk", "imx")
+                jpath =  joinpath(s, "$name/$ecutwfc/$ecutrho/$nk")
+                if ispath(s, joinpath(jpath, "CRASH"))
+                    @warn "Job $jpath crashed, see CRASH file for more info."
+                elseif !ispath(s, joinpath(jpath, "scf.out"))
+                    @warn "Something went wrong for job $jpath, resubmitting."
+                    submit(Job(jpath, "imx"))
                 else
-                    outdata = outputdata(tj)
+                    outdata = outputdata(jpath, server, ["scf"])
                     if haskey(outdata["scf"], :accuracy) && haskey(outdata["scf"], :fermi) && haskey(outdata["scf"], :timing)
                         outd = Dict("k_density" => 1/nk, "ecutrho" => ecutrho, "ecutwfc" => ecutwfc)
                         
                         outd["accuracy"]=outdata["scf"][:accuracy][end]
-                        outd["total_energy"]=outdata["scf"][:total_energy][end]/length(tj.structure.atoms)
+                        outd["total_energy"]=outdata["scf"][:total_energy][end]/2
                         outd["n_iterations"] = outdata["scf"][:scf_iteration][end]
                         outd["converged"] = outdata["scf"][:converged]
                         outd["fermi"] = outdata["scf"][:fermi]
                         outd["time"] = Dates.toms(outdata["scf"][:timing][1].wall + outdata["scf"][:timing][2].wall)
                         push!(results, outd)
                     else
-                        @warn "Something went wrong for job $(tj.dir) during scf run, resubmitting."
-                        submit(tj)
+                        try
+                            @warn "Something went wrong for job $jpath during scf run, resubmitting."
+                            submit(Job(jpath, server))
+                        catch
+                            nothing
+                        end
                     end
                 end
             end
@@ -73,12 +77,17 @@ function parse_cmdline()
             default = 100:40:400
             required = false
             arg_type = StepRange
+        "--server"
+            help = "Server on which things are running."
+            default = "fidis"
+            required = false
+            arg_type = String
     end
     return parse_args(s)
 end
 
 function main()
     parsed_args = parse_cmdline()
-    process_jobs(parsed_args["name"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"])
+    process_jobs(parsed_args["name"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"], parsed_args["server"])
 end
 main()
