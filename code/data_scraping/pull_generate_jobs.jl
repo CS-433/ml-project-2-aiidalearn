@@ -6,12 +6,12 @@ using DFControl
 
 function pull_generate_jobs(nelements, nsites, api_key, args...)
     d = Dict("criteria"   => Dict("nelements" => nelements, "nsites" => nsites),
-             "properties" => ["formula", "cif", "pretty_formula"])
+	                  "properties" => ["formula", "cif", "pretty_formula"])
     data = join(["$k=$(HTTP.escapeuri(JSON3.write(v)))" for (k, v) in d], "&")
     
     resp = HTTP.post("https://www.materialsproject.org/rest/v2/query",
-                     ["Content-Type" => "application/x-www-form-urlencoded", "x-api-key" => api_key],
-                     data)
+		                          ["Content-Type" => "application/x-www-form-urlencoded", "x-api-key" => api_key],
+					                       data)
 
     if resp.status != 200
         error("Something went wrong with your request: $(resp.status)")
@@ -132,3 +132,4 @@ function main()
 end
 
 main()
+
