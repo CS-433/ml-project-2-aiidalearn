@@ -6,12 +6,12 @@ using DFControl
 
 function pull_generate_jobs(nelements, nsites, api_key, args...)
     d = Dict("criteria"   => Dict("nelements" => nelements, "nsites" => nsites),
-             "properties" => ["formula", "cif", "pretty_formula"])
+	                  "properties" => ["formula", "cif", "pretty_formula"])
     data = join(["$k=$(HTTP.escapeuri(JSON3.write(v)))" for (k, v) in d], "&")
     
     resp = HTTP.post("https://www.materialsproject.org/rest/v2/query",
-                     ["Content-Type" => "application/x-www-form-urlencoded", "x-api-key" => api_key],
-                     data)
+		                          ["Content-Type" => "application/x-www-form-urlencoded", "x-api-key" => api_key],
+					                       data)
 
     if resp.status != 200
         error("Something went wrong with your request: $(resp.status)")
@@ -19,19 +19,21 @@ function pull_generate_jobs(nelements, nsites, api_key, args...)
 
     valid_atsyms = keys(DFControl.Client.list_pseudoset("fidis", "sssp_efficiency"))
     
-    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[350:400]
+    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))
         sysname = sys["pretty_formula"]
         sysdir  = datadir(sysname)
-        @info "Creating run for $sysname."
-        mkpath(sysdir)
-        cifpath = joinpath(sysdir, "$sysname.cif") 
-        write(cifpath, sys["cif"]) #Just save the cif file
-        # run the jobs
-        generate_jobs(cifpath, args...)
+        if !ispath(joinpath(sysdir, "data.json")) # For now we assume that as soon as there is a data.json, the run shouldn't be resubmitted
+            @info "Creating run for $sysname."
+            mkpath(sysdir)
+            cifpath = joinpath(sysdir, "$sysname.cif") 
+            write(cifpath, sys["cif"]) #Just save the cif file
+            # run the jobs
+            generate_jobs(cifpath, args...)
+        end
     end
 end
             
-function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
+function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing, root, environment)
     name = splitext(splitpath(cif_file)[end])[1]
     dir = datadir(name)
     str = Structures.cif2structure(cif_file)
@@ -43,7 +45,7 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
     calc[1][:disk_io] = "nowf"
 #Calculations.set_flags!(calc[1].exec, :nk => 10)
     
-    job = Job(name, str, calc, server="fidis", environment ="normal_1nodes")
+    job = Job(name, str, calc, server="fidis", environment = environment)
     server = Server("fidis")
     set_pseudos!(job, :sssp_efficiency)
     jobs = Job[]
@@ -53,8 +55,8 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing)
                 continue
             end
             for nk in kpoints
-                dir = "ml_project/$name/$ecutwfc/$ecutrho/$nk"
-                if !ispath(server, dir) || !ispath(server, joinpath(dir, "scf.out"))
+                dir = joinpath(root, name, ecutwfc, ecutrho, nk)
+                if !ispath(server, joinpath(server, dir))
                     tj = deepcopy(job)
                     tj.dir = dir 
                     tj[:ecutrho] = ecutrho
@@ -110,13 +112,24 @@ function parse_cmdline()
             default = 0.02
             required=false
             arg_type=Float64
+        "--root"
+            help = "Root dir for runs on server."
+            default = ""
+            required = false
+            arg_type = String
+        "--environment"
+            help = "environment to use."
+            default = "normal_1node"
+            required = false
+            arg_type = String
     end
     return parse_args(s)
 end
 
 function main()
     parsed_args = parse_cmdline()
-    pull_generate_jobs(parsed_args["nelements"], parsed_args["nsites"], parsed_args["apikey"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"], parsed_args["smearing"])
+    pull_generate_jobs(parsed_args["nelements"], parsed_args["nsites"], parsed_args["apikey"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"], parsed_args["smearing"], parsed_args["root"], parsed_args["environment"])
 end
 
 main()
+

@@ -144,14 +144,28 @@ if __name__ == "__main__":
             structure_name = filename[: -len(ext)]
             print(f"Parsing {structure_name}...")
 
+            elements_nbrs ={
+                    elt.split("-")[0]: int(elt.split("-")[1])
+                    for elt in structure_name.split("_")
+                }
+
+            # Skip Lantanides
+            isLant = False
+            for elt in elements_nbrs.keys():
+                ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+                if ELEMENT_INFO['PTC'] == 'Lant':
+                    isLant = True
+
+            if isLant:
+                continue
+
+
+
             parse_json(
                 filepath=os.path.join(DATA_DIR, filename),
                 savepath=DATA_DIR,
                 name=structure_name,
-                elements_nbrs={
-                    elt.split("-")[0]: int(elt.split("-")[1])
-                    for elt in structure_name.split("_")
-                },
+                elements_nbrs=elements_nbrs,
                 encodings=list(Encoding),
                 inv_k_density=True,
             )
