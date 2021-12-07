@@ -8,7 +8,10 @@ Created on Tue Nov 23 14:32:26 2021
 
 import json
 import os
+import re
+from collections import defaultdict
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
@@ -53,8 +56,7 @@ def encode_structure(
     total_atoms = sum(list(elements_nbrs.values()))
     total_mass = 0.0
     for elt, nb_elt in elements_nbrs.items():
-        ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-        elt_mass = ELEMENT_INFO["mass"]
+        elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
         total_mass += nb_elt * elt_mass
 
     if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
@@ -108,7 +110,6 @@ def compute_delta_E(df: pd.DataFrame):
 def parse_json(
     filepath: str,
     savepath: str,
-    name: str,
     elements_nbrs: Dict[str, int],
     encodings: List[Encoding] = [Encoding.ATOMIC],
     inv_k_density: bool = False,
@@ -133,36 +134,39 @@ def parse_json(
 
     for encoding in encodings:
         encode_structure(df.copy(), elements_nbrs, encoding).to_csv(
-            os.path.join(savepath, f"{name}_{encoding.value}.csv")
+            os.path.join(savepath, f"enc_{encoding.value}.csv")
         )
 
 
 if __name__ == "__main__":
-    for filename in os.listdir(DATA_DIR):
-        ext = ".json"
-        if filename.endswith(ext):
-            structure_name = filename[: -len(ext)]
-            print(f"Parsing {structure_name}...")
+    p = Path(DATA_DIR)
+    for struct_dir in p.iterdir():
+        if not struct_dir.is_dir():
+            continue
+        for file in struct_dir.glob("data.json"):
+            structure_name = os.path.basename(struct_dir)
 
-            elements_nbrs = {
-                elt.split("-")[0]: int(elt.split("-")[1])
-                for elt in structure_name.split("_")
-            }
+            # Parsing the structure name to get the elements and their number
+            elts = re.findall("[A-Z][^A-Z]*", structure_name)
+            elements_nbrs = defaultdict(int)
+            for elt in elts:
+                atom_num = re.findall("\d+|\D+", elt)
+                if len(atom_num) == 1:
+                    elements_nbrs[elt] += 1
+                else:
+                    elements_nbrs[elt[0]] += int(elt[1])
 
             # Skip Lantanides
             isLant = False
             for elt in elements_nbrs.keys():
-                ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-                if ELEMENT_INFO["PTC"] == "Lant":
+                if PERIODIC_TABLE_INFO[elt]["PTC"] == "Lant":
                     isLant = True
-
             if isLant:
                 continue
 
             parse_json(
-                filepath=os.path.join(DATA_DIR, filename),
-                savepath=DATA_DIR,
-                name=structure_name,
+                filepath=file,
+                savepath=struct_dir,
                 elements_nbrs=elements_nbrs,
                 encodings=list(Encoding),
                 inv_k_density=True,
