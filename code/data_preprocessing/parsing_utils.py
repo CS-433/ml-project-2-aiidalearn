@@ -117,17 +117,8 @@ def parse_json(
     with open(filepath) as file:
         data = json.load(file)
 
-    raw_df = pd.DataFrame(data)
-    raw_df = compute_delta_E(raw_df)
-    rel_cols = [
-        "ecutrho",
-        "k_density",
-        "ecutwfc",
-        "converged",
-        "accuracy",
-        "delta_E",
-    ]
-    df = raw_df[rel_cols]
+    df = pd.DataFrame(data)
+    df = compute_delta_E(df)
 
     if inv_k_density:
         df["k_density"] = df["k_density"].apply(lambda x: int(round(1 / x)))
