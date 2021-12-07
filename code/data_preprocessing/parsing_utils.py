@@ -6,39 +6,25 @@ Created on Tue Nov 23 14:32:26 2021
 @author: philipp
 """
 
-import json
 import os
-import re
-from collections import defaultdict
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
-def load_json(filepath: str):
-    with open(filepath) as file:
-        data = json.load(file)
-    return data
-
-
-# LOADING ALL ELEMENT KEYS
-SSSP_PATH = os.path.join(
-    os.path.dirname(__file__), "SSSP_1.1.2_PBE_efficiency.json",
+from tools.utils import (
+    PERIODIC_TABLE_INFO,
+    PTC_COLNAMES,
+    extract_structure_elements,
+    load_json,
 )
-SSSP_TABLE = load_json(SSSP_PATH)
-
-PERIODIC_TABLE_PATH = os.path.join(
-    os.path.dirname(__file__), "periodic_table_info.json",
-)
-PERIODIC_TABLE_INFO = load_json(PERIODIC_TABLE_PATH)
-PERIODIC_TABLE_KEYS = list(PERIODIC_TABLE_INFO.keys())
-PTC_COLNAMES = ["PTC" + str(n) for n in range(1, 19)]
-
 
 DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data/"
+    str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 
 
@@ -63,7 +49,7 @@ def encode_structure(
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
     elif encoding == Encoding.ATOMIC:
-        for element in PERIODIC_TABLE_KEYS:
+        for element in PERIODIC_TABLE_INFO:
             df = df.assign(**{element: 0.0})
 
     for elt, nb_elt in elements_nbrs.items():
@@ -114,8 +100,7 @@ def parse_json(
     encodings: List[Encoding] = [Encoding.ATOMIC],
     inv_k_density: bool = False,
 ):
-    with open(filepath) as file:
-        data = json.load(file)
+    data = load_json(filepath)
 
     df = pd.DataFrame(data)
     df = compute_delta_E(df)
@@ -138,22 +123,7 @@ if __name__ == "__main__":
             structure_name = os.path.basename(struct_dir)
 
             # Parsing the structure name to get the elements and their number
-            elts = re.findall("[A-Z][^A-Z]*", structure_name)
-            elements_nbrs = defaultdict(int)
-            for elt in elts:
-                atom_num = re.findall("\d+|\D+", elt)
-                if len(atom_num) == 1:
-                    elements_nbrs[elt] += 1
-                else:
-                    elements_nbrs[elt[0]] += int(elt[1])
-
-            # Skip Lantanides
-            isLant = False
-            for elt in elements_nbrs.keys():
-                if PERIODIC_TABLE_INFO[elt]["PTC"] == "Lant":
-                    isLant = True
-            if isLant:
-                continue
+            elements_nbrs = extract_structure_elements(structure_name)
 
             parse_json(
                 filepath=file,
