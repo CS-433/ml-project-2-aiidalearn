@@ -55,7 +55,7 @@ function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing, root, en
                 continue
             end
             for nk in kpoints
-                dir = joinpath(root, name, ecutwfc, ecutrho, nk)
+                dir = joinpath(root, name, string(ecutwfc), string(ecutrho), string(nk))
                 if !ispath(server, joinpath(server, dir))
                     tj = deepcopy(job)
                     tj.dir = dir 
