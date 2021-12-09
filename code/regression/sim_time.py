@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
+sys.path.append(str(Path(__file__).parent.parent.absolute()))
 from tools.utils import Encoding, custom_mape, encode_all_structures
 
 # Set Up
@@ -146,8 +147,9 @@ if input("Save models? (y/[n]) ") == "y":
         "XGBoost": (xgb_model, "xgb_model.pkl"),
     }
 
-    with console.status("[bold green] Saving models...") as status:
+    with console.status("[bold green]Saving models...") as status:
         for model_name, (model, filename) in save_models.items():
+            Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
             modelpath = MODELS_DIR + filename
             with open(modelpath, "wb") as file:
                 pickle.dump(model, file)

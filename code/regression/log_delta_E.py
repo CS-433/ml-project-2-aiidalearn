@@ -1,7 +1,6 @@
 import os
 import pickle
 import sys
-
 from pathlib import Path
 
 import numpy as np
@@ -16,14 +15,12 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 from tools.utils import Encoding, custom_mape, encode_all_structures
-
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -50,6 +47,7 @@ class LogTransform:
 
     def inverse_transform(self, logy):
         return np.exp(logy) + self.miny - self.eps
+
 
 # Data Loading
 with console.status("") as status:
@@ -186,8 +184,9 @@ if input("Save models? (y/[n]) ") == "y":
         "XGBoost - log": (xgb_log_model, "xgb_model.pkl"),
     }
 
-    with console.status("[bold green] Saving models...") as status:
+    with console.status("[bold green]Saving models...") as status:
         for model_name, (model, filename) in save_models.items():
+            Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
             modelpath = MODELS_DIR + filename
             with open(modelpath, "wb") as file:
                 pickle.dump(model, file)

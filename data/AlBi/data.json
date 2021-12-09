@@ -1,3 +1,1 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f7440c08e672f011205c447ad02b0d78dd2822a5e0944e982dd9f7b1f5a885e5
-size 318
+[{"ecutrho":380,"k_density":0.1,"ecutwfc":100,"n_iterations":9,"time":195119,"converged":true,"accuracy":7.4e-10,"fermi":5.9429,"total_energy":-111.74266079},{"ecutrho":380,"k_density":0.125,"ecutwfc":100,"n_iterations":10,"time":110060,"converged":true,"accuracy":7.0e-11,"fermi":5.9382,"total_energy":-111.74248454}]
