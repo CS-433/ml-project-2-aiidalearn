@@ -3,12 +3,13 @@ import pickle
 import sys
 from pathlib import Path
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from rich.console import Console
 from rich.table import Table
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import (
     mean_absolute_error,
@@ -50,6 +51,7 @@ with console.status("") as status:
     cols_trash = [
         "structure",
         "converged",
+        "accuracy",
         "n_iterations",
         "delta_E",
         "fermi",
@@ -69,42 +71,46 @@ with console.status("") as status:
     X_train, X_test, y_train, y_test = train_test_split(
         X_raw, y_raw, test_size=0.2, random_state=42
     )
-console.log("Data loaded")
+
+    console.log("Data loaded")
 
 # Model definition
-linear_augmented_model = Pipeline(
-    [
-        ("scaler_init", StandardScaler()),
-        ("poly_features", PolynomialFeatures(degree=2)),
-        ("scaler_final", StandardScaler()),
-        ("regressor", LinearRegression()),
-    ]
-)
+with console.status("") as status:
+    status.update("[bold blue]Initializing models...")
 
-rf_model = RandomForestRegressor(random_state=0)
+    linear_augmented_model = Pipeline(
+        [
+            ("scaler_init", StandardScaler()),
+            ("poly_features", PolynomialFeatures(degree=2)),
+            ("scaler_final", StandardScaler()),
+            ("regressor", LinearRegression()),
+        ]
+    )
 
-gb_model = GradientBoostingRegressor(
-    n_estimators=5000, learning_rate=0.05, random_state=0
-)
+    rf_model = RandomForestRegressor(random_state=0)
 
-xgb_model = xgb.XGBRegressor(
-    n_estimators=5000, learning_rate=0.05, random_state=0
-)
+    xgb_model = xgb.XGBRegressor(
+        n_estimators=5000, learning_rate=0.05, random_state=0
+    )
 
-# detect if gpu is usable with xgboost by training on toy data
-try:
-    xgb_model.set_params(tree_method="gpu_hist")
-    xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
-    console.print("[italic bright_black]Using GPU for XGBoost")
-except:
-    xgb_model.set_params(tree_method="hist")
-    console.print("[italic bright_black]Using CPU for XGBoost")
+    lgbm_model = lgb.LGBMRegressor(
+        n_estimators=5000, learning_rate=0.05, random_state=0
+    )
+
+    status.update("[bold blue]Checking GPU usability for XGBoost...")
+    try:
+        xgb_model.set_params(tree_method="gpu_hist")
+        xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
+        console.print("[italic bright_black]Using GPU for XGBoost")
+    except:
+        xgb_model.set_params(tree_method="hist")
+        console.print("[italic bright_black]Using CPU for XGBoost")
 
 models = {
     "Augmented Linear Regression": linear_augmented_model,
     "Random Forest": rf_model,
-    # "Gradient Boosting": gb_model,
     "XGBoost": xgb_model,
+    "LightGBM": lgbm_model,
 }
 
 # Model training
@@ -143,8 +149,8 @@ with console.status("") as status:
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
         "Random Forest": (rf_model, "random_forest_model.pkl"),
-        # "Gradient Boosting": (gb_model, "gb_model.pkl"),
         "XGBoost": (xgb_model, "xgb_model.pkl"),
+        "LightGBM": (lgbm_model, "lgbm_model.pkl"),
     }
 
     with console.status("[bold green]Saving models...") as status:
