@@ -110,4 +110,8 @@ ENV/
 *.synctex.gz
 *.tex
 
+# Julia
 ./Manifest.toml
+
+# models
+models/*
