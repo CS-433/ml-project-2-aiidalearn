@@ -110,4 +110,4 @@ ENV/
 *.synctex.gz
 *.tex
 
-Manifest.toml
+./Manifest.toml
