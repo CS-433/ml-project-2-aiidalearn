@@ -48,7 +48,6 @@ class LogTransform:
     def inverse_transform(self, logy):
         return np.exp(logy) + self.miny - self.eps
 
-
 # Data Loading
 with console.status("") as status:
     status.update("[bold blue]Loading data...")
