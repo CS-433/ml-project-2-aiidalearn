@@ -105,7 +105,7 @@ if __name__ == "__main__":
     )
     exit()
 
-    # Code below parse JSON individually and with specific encodings
+    # Code below parses JSON individually and with specific encodings
     p = Path(DATA_DIR)
     for struct_dir in p.iterdir():
         if not struct_dir.is_dir():
