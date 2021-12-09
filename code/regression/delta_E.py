@@ -1,8 +1,8 @@
 import os
 import pickle
 import sys
-
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -10,17 +10,17 @@ from rich.console import Console
 from rich.table import Table
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import (
-    Encoding,
-    custom_mape,
-    encode_all_structures,
-)
+from tools.utils import Encoding, custom_mape, encode_all_structures
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -174,8 +174,9 @@ with console.status("") as status:
 
         for loss_name, loss_fn in [
             ("MSE", mean_squared_error),
+            ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
-            # ("Custom MAPE", custom_mape),
+            ("Custom MAPE", custom_mape),
         ]:
             train_loss = loss_fn(y_train, y_pred_train)
             test_loss = loss_fn(y_test, y_pred_test)
@@ -186,21 +187,13 @@ with console.status("") as status:
 
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
-        "Random Forest": rf_model,
-        "Gradient Boosting": gb_model,
-        "XGBoost": xgb_model,
+        "Random Forest": (rf_model, "random_forest_model.pkl"),
+        # "Gradient Boosting": (gb_model, "gb_model.pkl"),
+        "XGBoost": (xgb_model, "xgb_model.pkl"),
     }
 
-    models_filenames = [
-        "random_forest_model.pkl",
-        "gb_model.pkl",
-        "xgb_model.pkl",
-    ]
-
-    with console.status("[bold green]Saving models...") as status:
-        for filename, (model_name, model) in zip(
-            models_filenames, save_models.items()
-        ):
+    with console.status("[bold green] Saving models...") as status:
+        for model_name, (model, filename) in save_models.items():
             modelpath = MODELS_DIR + filename
             with open(modelpath, "wb") as file:
                 pickle.dump(model, file)
