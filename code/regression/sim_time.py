@@ -25,31 +25,34 @@ from tools.utils import encode_all_structures, Encoding
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.getcwd())), "data/"
 )
-
+console = Console()
+console.print("[bold blue] Launched training and evaluation of simulation time models")
 # Loading Data
-encoding = Encoding.COLUMN_MASS
+with console.status("[bold blue]Loading data...") as status:
+    encoding = Encoding.COLUMN_MASS
 
-df = pd.read_csv(os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False)
-df = encode_all_structures(df, encoding)
+    df = pd.read_csv(os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False)
+    df = encode_all_structures(df, encoding)
 
-cols_raw = list(df.columns)
-cols_trash = ["structure", 'converged', "n_iterations", "delta_E", "fermi", "total_energy"]
-cols_independent = ['time']
-cols_drop = cols_trash + cols_independent
+    cols_raw = list(df.columns)
+    cols_trash = ["structure", 'converged', "n_iterations", "delta_E", "fermi", "total_energy"]
+    cols_independent = ['time']
+    cols_drop = cols_trash + cols_independent
 
-cols_dependent = cols_raw.copy()
-for element in cols_drop:
-    cols_dependent.remove(element)
+    cols_dependent = cols_raw.copy()
+    for element in cols_drop:
+        cols_dependent.remove(element)
 
-X_raw = df[cols_dependent][df["converged"]]
-y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
+    X_raw = df[cols_dependent][df["converged"]]
+    y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
 
-# Train-test-split
-X_train, X_test, y_train, y_test = train_test_split(
-    X_raw, y_raw,
-    test_size=0.2,
-    random_state=42
-)
+    # Train-test-split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_raw, y_raw,
+        test_size=0.2,
+        random_state=42
+    )
+    console.log('[blue] Loaded data successfully!')
 
 # Model definition
 linear_augmented_model = Pipeline([
@@ -73,8 +76,6 @@ models = {
 }
 
 # Model training
-
-console = Console()
 with console.status("[bold blue]Training models...") as status:
     for model_name, model in models.items():
         model.fit(X_train, y_train)

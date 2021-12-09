@@ -30,31 +30,35 @@ DATA_DIR = os.path.join(
 encoding = Encoding.COLUMN_MASS
 
 # Data Loading
-
-df = pd.read_csv(os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter= False)
-df = encode_all_structures(df, encoding)
-
-
-cols_raw = list(df.columns)
-cols_trash = ["structure", 'converged', 'accuracy', "n_iterations", "time", "fermi", "total_energy"]
-cols_independent = ['delta_E']
-cols_drop = cols_trash + cols_independent
-
-cols_dependent = cols_raw.copy()
-for element in cols_drop:
-    cols_dependent.remove(element)
+console = Console()
+console.print("[bold blue] Launched training and evaluation of ∆E models")
+with console.status("[bold blue]Loading data...") as status:
+    df = pd.read_csv(os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter= False)
+    df = encode_all_structures(df, encoding)
 
 
-X_raw = df[cols_dependent][df["converged"]]
-y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
+    cols_raw = list(df.columns)
+    cols_trash = ["structure", 'converged', 'accuracy', "n_iterations", "time", "fermi", "total_energy"]
+    cols_independent = ['delta_E']
+    cols_drop = cols_trash + cols_independent
 
-# Train-Test-Split
+    cols_dependent = cols_raw.copy()
+    for element in cols_drop:
+        cols_dependent.remove(element)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X_raw, y_raw,
-    test_size=0.2,
-    random_state=42
-)
+
+    X_raw = df[cols_dependent][df["converged"]]
+    y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
+
+    # Train-Test-Split
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_raw, y_raw,
+        test_size=0.2,
+        random_state=42
+    )
+    console.log('[blue] Loaded data successfully!')
+
 
 # Model Definitions
 # functions such that f(x) != 0 and f(+inf) = 0
