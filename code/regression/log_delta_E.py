@@ -1,37 +1,43 @@
 import os
+import pickle
+import sys
+
+from pathlib import Path
 import numpy as np
 import pandas as pd
-import sys
-from time import sleep
-
-from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures, FunctionTransformer
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
-
 import xgboost as xgb
-
-import pickle
-
 from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+sys.path.append(str(Path(__file__).parent.parent.absolute()))
+from tools.utils import (
+    Encoding,
+    custom_mape,
+    encode_all_structures,
+)
 
 # Set Up
-
-sys.path.append(os.path.dirname(os.getcwd()))
-from tools.utils import PERIODIC_TABLE_INFO, PTC_COLNAMES, encode_all_structures, Encoding, custom_mape
-
 DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.getcwd())), "data/"
+    str(Path(__file__).parent.parent.parent.absolute()), "data/"
+)
+
+MODELS_DIR = os.path.join(
+    str(Path(__file__).parent.parent.parent.absolute()), "models/delta_E/"
 )
 
 encoding = Encoding.COLUMN_MASS
 
-# Class to apply log-transformation to dataset
+console = Console()
 
+# Class to apply log-transformation to dataset
 class LogTransform:
     def __init__(self, y):
         self.miny = float(np.min(y))
@@ -45,53 +51,73 @@ class LogTransform:
         return np.exp(logy) + self.miny - self.eps
 
 # Data Loading
-console = Console()
-console.print("[bold blue] Launched training and evaluation of log(∆E) models")
-with console.status("[bold blue]Loading data...") as status:
-    df = pd.read_csv(os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter= False)
+with console.status("") as status:
+    status.update("[bold blue]Loading data...")
+    df = pd.read_csv(
+        os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False
+    )
+
+    status.update(f"[bold blue]Encoding structures ({encoding})...")
     df = encode_all_structures(df, encoding)
 
-
+    status.update(f"[bold blue]Splitting data...")
     cols_raw = list(df.columns)
-    cols_trash = ["structure", 'converged', 'accuracy', "n_iterations", "time", "fermi", "total_energy"]
-    cols_independent = ['delta_E']
+    cols_trash = [
+        "structure",
+        "converged",
+        "accuracy",
+        "n_iterations",
+        "time",
+        "fermi",
+        "total_energy",
+    ]
+    cols_independent = ["delta_E"]
     cols_drop = cols_trash + cols_independent
 
     cols_dependent = cols_raw.copy()
     for element in cols_drop:
         cols_dependent.remove(element)
 
-
     X_raw = df[cols_dependent][df["converged"]]
     y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
 
     # Log transform and train-test-tplit
-
     log_transform = LogTransform(y_raw)
 
     logy_raw = log_transform.transform(y_raw)
     X_train, X_test, logy_train, logy_test = train_test_split(
-        X_raw, logy_raw,
-        test_size=0.2,
-        random_state=42
+        X_raw, logy_raw, test_size=0.2, random_state=42
     )
-    console.log('[blue] Loaded data successfully!')
-
+console.log("Data loaded")
 
 # Model Definitions
-# functions such that f(x) != 0 and f(+inf) = 0
-linear_log_augmented_model = Pipeline([
-    ('scaler_init', StandardScaler()),
-    ('features', PolynomialFeatures(degree=2)),
-    ('scaler_final', StandardScaler()),
-    ('regressor', LinearRegression()),
-])
+linear_log_augmented_model = Pipeline(
+    [
+        ("scaler_init", StandardScaler()),
+        ("features", PolynomialFeatures(degree=2)),
+        ("scaler_final", StandardScaler()),
+        ("regressor", LinearRegression()),
+    ]
+)
 
 rf_log_model = RandomForestRegressor(random_state=0)
 
-gb_log_model = GradientBoostingRegressor(n_estimators=5000, learning_rate=0.05, random_state=0)
+gb_log_model = GradientBoostingRegressor(
+    n_estimators=5000, learning_rate=0.05, random_state=0
+)
 
-xgb_log_model = xgb.XGBRegressor(n_estimators=5000, learning_rate=0.05, random_state=0)
+xgb_log_model = xgb.XGBRegressor(
+    n_estimators=5000, learning_rate=0.05, random_state=0
+)
+
+# detect if gpu is usable with xgboost by training on toy data
+try:
+    xgb_log_model.set_params(tree_method="gpu_hist")
+    xgb_log_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
+    console.print("[italic bright_black]Using GPU for XGBoost")
+except:
+    xgb_log_model.set_params(tree_method="hist")
+    console.print("[italic bright_black]Using CPU for XGBoost")
 
 models_log = {
     "Augmented Linear Regression - Log": linear_log_augmented_model,
@@ -101,77 +127,73 @@ models_log = {
 }
 
 # Model training
-console = Console()
-with console.status("[bold blue]Training models...") as status:
+with console.status("") as status:
     for model_name, model in models_log.items():
+        status.update(f"[bold blue]Training {model_name}...")
         model.fit(X_train, logy_train)
         console.log(f"[blue]Finished training {model_name}[/blue]")
 
 # Model evaluation
-
-with console.status("[bold blue] Evaluating models...") as status:
+with console.status("") as status:
     for model_name, model in models_log.items():
-        sleep(0.5)
-        console.log(f"[blue]Evaluating {model_name}[/blue]")
+        status.update(f"[bold blue]Evaluating {model_name}...")
 
+        table = Table(title=model_name)
+        table.add_column("Loss name", justify="center", style="cyan")
+        table.add_column("Train", justify="center", style="green")
+        table.add_column("Test", justify="center", style="green")
+
+        # first we evaluate the log-transformed prediction
         logy_pred_train = model.predict(X_train)
-        y_pred_train = log_transform.inverse_transform(logy_pred_train.squeeze())
         logy_pred_test = model.predict(X_test)
+
+        for loss_name, loss_fn in [
+            ("MSE - log", mean_squared_error),
+            ("MAPE - log", mean_absolute_percentage_error),
+            # ("Custom MAPE - log", custom_mape),
+        ]:
+            train_loss = loss_fn(logy_train, logy_pred_train)
+            test_loss = loss_fn(logy_test, logy_pred_test)
+            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
+
+        # then we transform the predictions back and evaluate
+        y_pred_train = log_transform.inverse_transform(
+            logy_pred_train.squeeze()
+        )
         y_pred_test = log_transform.inverse_transform(logy_pred_test.squeeze())
 
         y_train = log_transform.inverse_transform(logy_train.squeeze())
         y_test = log_transform.inverse_transform(logy_test.squeeze())
 
-        mse_test = mean_squared_error(logy_test, logy_pred_test)
-        mse_train = mean_squared_error(logy_train, logy_pred_train)
+        for loss_name, loss_fn in [
+            ("MSE", mean_squared_error),
+            ("MAPE", mean_absolute_percentage_error),
+            # ("Custom MAPE", custom_mape),
+        ]:
+            train_loss = loss_fn(y_train, y_pred_train)
+            test_loss = loss_fn(y_test, y_pred_test)
+            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
 
-        titlestr = f'MSE log\n'
-        contentstr = f"train:{mse_train:.4E}\ttest:{mse_test:.4E}"
-        p1 = Panel(titlestr+contentstr)
+        console.print(table)
 
-        mse_test = mean_squared_error(y_test, y_pred_test)
-        mse_train = mean_squared_error(y_train, y_pred_train)
+if input("Save models? (y/[n]) ") == "y":
+    save_models = {
+        "Random Forest": rf_log_model,
+        "Gradient Boosting": gb_log_model,
+        "XGBoost": xgb_log_model,
+    }
 
-        titlestr = f'MSE\n'
-        contentstr = f"train:{mse_train:.4E}\ttest:{mse_test:.4E}"
-        p2 = Panel(titlestr+contentstr)
+    models_filenames = [
+        "log_random_forest_model.pkl",
+        "log_gb_model.pkl",
+        "log_xgb_model.pkl",
+    ]
 
-        mape_test = mean_absolute_percentage_error(logy_test, logy_pred_test)
-        mape_train = mean_absolute_percentage_error(logy_train, logy_pred_train)
-
-        titlestr = f'MAPE\n'
-        contentstr = f"train:{mape_train:.4E}\ttest:{mape_test:.4E}"
-        p3 = Panel(titlestr+contentstr)
-
-        renderables = [p1, p2, p3]
-        console.print(Columns(renderables))
-
-        # mape_test = custom_mape(y_test, y_pred_test)
-        # mape_train = custom_mape(y_train, y_pred_train)
-        # print(f"Custom MAPE:\ttrain:{mape_train:.4E}\ttest:{mape_test:.4E}")
-
-
-MODELS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.getcwd())), "models/log_delta_E/"
-)
-
-save_models = {
-    "Random Forest": rf_log_model,
-    "Gradient Boosting": gb_log_model,
-    "XGBoost": xgb_log_model,
-}
-
-models_filenames = [
-    "log_random_forest_model.pkl",
-    "log_gb_model.pkl",
-    "log_xgb_model.pkl",
-]
-
-with console.status("[bold green] Saving models...") as status:
-    for filename, (model_name, model) in zip(models_filenames, save_models.items()):
-        sleep(1)
-        modelpath = MODELS_DIR + filename
-        with open(modelpath, "wb") as file:
-            pickle.dump(model, file)
-        console.log(f"[green]Saved {model_name} to {modelpath}[/green]")
-
+    with console.status("[bold green] Saving models...") as status:
+        for filename, (model_name, model) in zip(
+            models_filenames, save_models.items()
+        ):
+            modelpath = MODELS_DIR + filename
+            with open(modelpath, "wb") as file:
+                pickle.dump(model, file)
+            console.log(f"[green]Saved {model_name} to {modelpath}[/green]")

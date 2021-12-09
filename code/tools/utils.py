@@ -4,12 +4,10 @@ import re
 from collections import defaultdict
 from enum import Enum
 from typing import Dict
-import numpy as np
 
+import numpy as np
 import pandas as pd
 from natsort import natsorted
-
-
 
 
 def load_json(filepath: str):
@@ -130,7 +128,7 @@ def custom_mape(y_true, y_pred):
     return np.mean(
         np.divide(
             np.abs(y_true - y_pred),
-            y_true,
+            np.abs(y_true),
             where=y_true != 0,
             out=np.zeros_like(y_true),
         )
