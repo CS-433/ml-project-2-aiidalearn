@@ -13,6 +13,10 @@ from typing import Dict, List
 
 import pandas as pd
 
+from rich.columns import Columns
+from rich.console import Console
+from rich.panel import Panel
+
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 from tools.utils import (
@@ -71,29 +75,30 @@ def parse_all_json(
 ) -> pd.DataFrame:
     list_df = []
     p = Path(data_dir)
-    for struct_dir in p.iterdir():
-        if not struct_dir.is_dir():
-            continue
-        for file in struct_dir.glob("data.json"):
-            structure_name = os.path.basename(struct_dir)
+    console = Console()
+    p = Path(DATA_DIR)
+    with console.status("[bold blue] Parsing structures...") as status:
+        for struct_dir in p.iterdir():
+            if not struct_dir.is_dir():
+                continue
+            for file in struct_dir.glob("data.json"):
+                structure_name = os.path.basename(struct_dir)
 
-            print(f"Parsing {structure_name}...")
+                data = load_json(file)
 
-            data = load_json(file)
+                df = pd.DataFrame(data)
+                df = compute_delta_E(df)
 
-            df = pd.DataFrame(data)
-            df = compute_delta_E(df)
+                if inv_k_density:
+                    df["k_density"] = df["k_density"].apply(
+                        lambda x: int(round(1 / x))
+                    )
 
-            if inv_k_density:
-                df["k_density"] = df["k_density"].apply(
-                    lambda x: int(round(1 / x))
-                )
+                df["structure"] = structure_name
+                df = df[["structure"] + df.columns.tolist()[:-1]]
+                list_df.append(df)
 
-            df["structure"] = structure_name
-            df = df[["structure"] + df.columns.tolist()[:-1]]
-            list_df.append(df)
-
-            print("Done!\n")
+                console.print(f'[blue]Parsed {structure_name}')
 
     res = pd.concat(list_df, ignore_index=True)
     res.to_csv(os.path.join(savepath, "data.csv"))
@@ -106,22 +111,23 @@ if __name__ == "__main__":
     exit()
 
     # Code below parses JSON individually and with specific encodings
+    console = Console()
     p = Path(DATA_DIR)
-    for struct_dir in p.iterdir():
-        if not struct_dir.is_dir():
-            continue
-        for file in struct_dir.glob("data.json"):
-            structure_name = os.path.basename(struct_dir)
-            print(f"Parsing {structure_name}...")
-            # Parsing the structure name to get the elements and their number
-            elements_nbrs = extract_structure_elements(structure_name)
+    with console.status("[bold blue] Parsing structures...") as status:
+        for struct_dir in p.iterdir():
+            if not struct_dir.is_dir():
+                continue
+            for file in struct_dir.glob("data.json"):
+                structure_name = os.path.basename(struct_dir)
+                # Parsing the structure name to get the elements and their number
+                elements_nbrs = extract_structure_elements(structure_name)
 
-            parse_json(
-                filepath=file,
-                savepath=struct_dir,
-                elements_nbrs=elements_nbrs,
-                encodings=list(Encoding),
-                inv_k_density=True,
-            )
+                parse_json(
+                    filepath=file,
+                    savepath=struct_dir,
+                    elements_nbrs=elements_nbrs,
+                    encodings=list(Encoding),
+                    inv_k_density=True,
+                )
 
-            print("Done!\n")
+                console.print(f'[blue]Parsed {structure_name}')
