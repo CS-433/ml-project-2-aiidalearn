@@ -4,7 +4,7 @@ using HTTP
 using JSON3
 using DFControl
 
-function pull_generate_jobs(nelements, nsites, api_key, args...)
+function pull_generate_jobs(nelements, nsites, api_key, server, root, args...)
     d = Dict("criteria"   => Dict("nelements" => nelements, "nsites" => nsites),
 	                  "properties" => ["formula", "cif", "pretty_formula"])
     data = join(["$k=$(HTTP.escapeuri(JSON3.write(v)))" for (k, v) in d], "&")
@@ -17,60 +17,56 @@ function pull_generate_jobs(nelements, nsites, api_key, args...)
         error("Something went wrong with your request: $(resp.status)")
     end
 
-    valid_atsyms = keys(DFControl.Client.list_pseudoset("fidis", "sssp_efficiency"))
+    valid_atsyms = keys(DFControl.Client.list_pseudoset(server, "sssp_efficiency"))
     
-    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))
+    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[601:end]
         sysname = sys["pretty_formula"]
         sysdir  = datadir(sysname)
-        if !ispath(joinpath(sysdir, "data.json")) # For now we assume that as soon as there is a data.json, the run shouldn't be resubmitted
+        if !ispath(joinpath(sysdir, "data.json")) && !ispath(Server(server), joinpath(root, sysname))  # For now we assume that as soon as there is a data.json, the run shouldn't be resubmitted
             @info "Creating run for $sysname."
             mkpath(sysdir)
             cifpath = joinpath(sysdir, "$sysname.cif") 
             write(cifpath, sys["cif"]) #Just save the cif file
             # run the jobs
-            generate_jobs(cifpath, args...)
+            generate_jobs(cifpath, server, root, args...)
         end
     end
 end
             
-function generate_jobs(cif_file, ecutwfcs, ecutrhos, kpoints, smearing, root, environment)
+function generate_jobs(cif_file, server, root, ecutwfcs, ecutrhos, kpoints, smearing, environment)
     name = splitext(splitpath(cif_file)[end])[1]
     dir = datadir(name)
     str = Structures.cif2structure(cif_file)
 
-    calc = Calculation[Calculation{QE}(name="scf", exec=Exec(exec="pw.x", dir="/work/theos/THEOS_software/QuantumESPRESSO/q-e-qe-6.7.0/bin", modules=["intel", "intel-mpi", "intel-mkl"]))]
-    calc[1][:calculation] = "scf"
-    calc[1][:conv_thr] = 1e-9
-    calc[1][:mixing_beta] = 0.4
-    calc[1][:disk_io] = "nowf"
-#Calculations.set_flags!(calc[1].exec, :nk => 10)
+    calc_template = Calculation{QE}(name = "scf",
+                                    exec = Exec(exec    = "pw.x",
+                                                dir     = "/work/theos/THEOS_software/QuantumESPRESSO/q-e-qe-6.7.0/bin",
+                                                modules = ["intel", "intel-mpi", "intel-mkl"]))
+    calc_template[:calculation] = "scf"
+    calc_template[:conv_thr]    = 1e-9
+    calc_template[:mixing_beta] = 0.4
+    calc_template[:disk_io]     = "nowf"
+    calc_template[:occupations] = "smearing"
+    calc_template[:smearing]    = "mv"
+    calc_template[:degauss]     = smearing
     
-    job = Job(name, str, calc, server="fidis", environment = environment)
-    server = Server("fidis")
+    job = Job(name, str, Calculation[], server=server, environment = environment, dir = joinpath(root, name))
     set_pseudos!(job, :sssp_efficiency)
-    jobs = Job[]
     for ecutwfc in ecutwfcs
         for ecutrho in ecutrhos
             if ecutrho == ecutwfc
                 continue
             end
             for nk in kpoints
-                dir = joinpath(root, name, string(ecutwfc), string(ecutrho), string(nk))
-                if !ispath(server, joinpath(server, dir))
-                    tj = deepcopy(job)
-                    tj.dir = dir 
-                    tj[:ecutrho] = ecutrho
-                    tj[:ecutwfc] = ecutwfc
-                    tj[:occupations] = "smearing"
-                    tj[:smearing] = "mv"
-                    tj[:degauss] = smearing
-                    set_kpoints!(tj["scf"], (nk, nk, nk))
-                    push!(jobs, tj)
-                end
+                calc = deepcopy(calc_template)
+                set_name!(calc, "scf_$(ecutwfc)_$(ecutrho)_$(nk)", print=false)
+                Calculations.set_flags!(calc, :ecutrho => ecutrho, :ecutwfc => ecutwfc, print=false)
+                set_kpoints!(calc, (nk, nk, nk), print=false)
+                push!(job, calc)
             end
         end
     end
-    submit(jobs)
+    submit(job)
 end
         
 using ArgParse
@@ -112,6 +108,11 @@ function parse_cmdline()
             default = 0.02
             required=false
             arg_type=Float64
+        "--server"
+            help = "Server to run on."
+            default = "fidis"
+            required = false
+            arg_type = String
         "--root"
             help = "Root dir for runs on server."
             default = ""
@@ -128,7 +129,7 @@ end
 
 function main()
     parsed_args = parse_cmdline()
-    pull_generate_jobs(parsed_args["nelements"], parsed_args["nsites"], parsed_args["apikey"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"], parsed_args["smearing"], parsed_args["root"], parsed_args["environment"])
+    pull_generate_jobs(parsed_args["nelements"], parsed_args["nsites"], parsed_args["apikey"], parsed_args["server"], parsed_args["root"], parsed_args["ecutwfc"], parsed_args["ecutrho"], parsed_args["kpoints"], parsed_args["smearing"], parsed_args["environment"])
 end
 
 main()
