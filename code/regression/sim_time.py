@@ -34,7 +34,7 @@ MODELS_DIR = os.path.join(
 
 encoding = Encoding.COLUMN_MASS
 
-console = Console()
+console = Console(record=True)
 
 # Loading Data
 with console.status("") as status:
@@ -153,9 +153,10 @@ if input("Save models? (y/[n]) ") == "y":
         "LightGBM": (lgbm_model, "lgbm_model.pkl"),
     }
 
+    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
+    console.save_html(os.path.join(MODELS_DIR, "results.html"))
     with console.status("[bold green]Saving models...") as status:
         for model_name, (model, filename) in save_models.items():
-            Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
             modelpath = MODELS_DIR + filename
             with open(modelpath, "wb") as file:
                 pickle.dump(model, file)
