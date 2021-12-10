@@ -6,6 +6,7 @@ from pathlib import Path
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
+from sklearn.dummy import DummyRegressor
 import xgboost as xgb
 from rich.console import Console
 from rich.table import Table
@@ -43,7 +44,7 @@ with console.status("") as status:
         os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False
     )
 
-    status.update(f"[bold blue]Encoding structures ({encoding})...")
+    status.update(f"[bold blue]Encoding structures ({encoding.value})...")
     df = encode_all_structures(df, encoding)
 
     status.update(f"[bold blue]Splitting data...")
@@ -90,7 +91,7 @@ with console.status("") as status:
     rf_model = RandomForestRegressor(random_state=0)
 
     xgb_model = xgb.XGBRegressor(
-        n_estimators=5000, learning_rate=0.05, random_state=0
+        max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
     )
 
     lgbm_model = lgb.LGBMRegressor(
@@ -107,10 +108,12 @@ with console.status("") as status:
         console.print("[italic bright_black]Using CPU for XGBoost")
 
 models = {
-    "Augmented Linear Regression": linear_augmented_model,
+    "Dummy": DummyRegressor(),
+    "Linear": LinearRegression(),
+    "Augmented Linear": linear_augmented_model,
     "Random Forest": rf_model,
     "XGBoost": xgb_model,
-    "LightGBM": lgbm_model,
+    # "LightGBM": lgbm_model,
 }
 
 # Model training
@@ -138,13 +141,37 @@ with console.status("") as status:
             ("MSE", mean_squared_error),
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
-            ("Custom MAPE", custom_mape),
+            ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
         ]:
             train_loss = loss_fn(y_train, y_pred_train)
             test_loss = loss_fn(y_test, y_pred_test)
             table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
 
         console.print(table)
+
+# print some samples
+n_sample = 10
+
+table = Table(title="Test samples")
+table.add_column("Real", justify="center", style="green")
+for model_name, _ in models.items():
+    table.add_column(model_name, justify="center", style="yellow")
+
+idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
+results = [np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())]
+for model_name, model in models.items():
+    results.append(
+        np.array(
+            model.predict(
+                X_test.loc[X_test.index.intersection(idx_sample)]
+            ).squeeze()
+        )
+    )
+
+for i in range(n_sample):
+    table.add_row(*[f"{r[i]:.3E}" for r in results],)
+console.print(table)
+
 
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
@@ -154,7 +181,9 @@ if input("Save models? (y/[n]) ") == "y":
     }
 
     Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
-    console.save_html(os.path.join(MODELS_DIR, "results.html"))
+    results_file = os.path.join(MODELS_DIR, "results.html")
+    console.save_html(results_file)
+    console.print(f"Results stored in {results_file}")
     with console.status("[bold green]Saving models...") as status:
         for model_name, (model, filename) in save_models.items():
             modelpath = MODELS_DIR + filename

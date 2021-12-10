@@ -8,7 +8,8 @@ import pandas as pd
 import xgboost as xgb
 from rich.console import Console
 from rich.table import Table
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.dummy import DummyRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import (
     mean_absolute_error,
@@ -20,7 +21,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import Encoding, custom_mape, encode_all_structures
+from tools.utils import (
+    Encoding,
+    LogTransform,
+    custom_mape,
+    encode_all_structures,
+)
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -35,20 +41,6 @@ encoding = Encoding.COLUMN_MASS
 
 console = Console(record=True)
 
-# Class to apply log-transformation to dataset
-class LogTransform:
-    def __init__(self, y):
-        self.miny = float(np.min(y))
-        miny2 = np.sort(list(set(list(np.array(y.squeeze())))))[1]
-        self.eps = (miny2 - self.miny) / 10
-
-    def transform(self, y):
-        return np.log(y - self.miny + self.eps)
-
-    def inverse_transform(self, logy):
-        return np.exp(logy) + self.miny - self.eps
-
-
 # Data Loading
 with console.status("") as status:
     status.update("[bold blue]Loading data...")
@@ -56,7 +48,7 @@ with console.status("") as status:
         os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False
     )
 
-    status.update(f"[bold blue]Encoding structures ({encoding})...")
+    status.update(f"[bold blue]Encoding structures ({encoding.value})...")
     df = encode_all_structures(df, encoding)
 
     status.update(f"[bold blue]Splitting data...")
@@ -101,12 +93,8 @@ linear_log_augmented_model = Pipeline(
 
 rf_log_model = RandomForestRegressor(random_state=0)
 
-gb_log_model = GradientBoostingRegressor(
-    n_estimators=5000, learning_rate=0.05, random_state=0
-)
-
 xgb_log_model = xgb.XGBRegressor(
-    n_estimators=5000, learning_rate=0.05, random_state=0
+    max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
 )
 
 # detect if gpu is usable with xgboost by training on toy data
@@ -119,10 +107,11 @@ except:
     console.print("[italic bright_black]Using CPU for XGBoost")
 
 models_log = {
-    "Augmented Linear Regression - Log": linear_log_augmented_model,
-    "Random Forest - Log": rf_log_model,
-    # "Gradient Boosting - Log": gb_log_model,
-    "XGBoost - Log": xgb_log_model,
+    "Dummy - log": DummyRegressor(),
+    "Linear - log": LinearRegression(),
+    "Augmented Linear - log": linear_log_augmented_model,
+    "Random Forest - log": rf_log_model,
+    "XGBoost - log": xgb_log_model,
 }
 
 # Model training
@@ -169,7 +158,7 @@ with console.status("") as status:
             ("MSE", mean_squared_error),
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
-            ("Custom MAPE", custom_mape),
+            ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
         ]:
             train_loss = loss_fn(y_train, y_pred_train)
             test_loss = loss_fn(y_test, y_pred_test)
@@ -177,6 +166,32 @@ with console.status("") as status:
 
         console.print(table)
 
+# print some samples
+n_sample = 10
+
+table = Table(title="Test samples")
+table.add_column("Real", justify="center", style="green")
+for model_name, _ in models_log.items():
+    table.add_column(model_name, justify="center", style="yellow")
+
+idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
+results = [np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())]
+for model_name, model in models_log.items():
+    results.append(
+        log_transform.inverse_transform(
+            np.array(
+                model.predict(
+                    X_test.loc[X_test.index.intersection(idx_sample)]
+                ).squeeze()
+            )
+        )
+    )
+
+for i in range(n_sample):
+    table.add_row(*[f"{r[i]:.3E}" for r in results],)
+console.print(table)
+
+# save results
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
         "Random Forest - log": (rf_log_model, "random_forest_model.pkl"),
@@ -185,7 +200,9 @@ if input("Save models? (y/[n]) ") == "y":
     }
 
     Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
-    console.save_html(os.path.join(MODELS_DIR, "results.html"))
+    results_file = os.path.join(MODELS_DIR, "results.html")
+    console.save_html(results_file)
+    console.print(f"Results stored in {results_file}")
     with console.status("[bold green]Saving models...") as status:
         for model_name, (model, filename) in save_models.items():
             modelpath = MODELS_DIR + filename

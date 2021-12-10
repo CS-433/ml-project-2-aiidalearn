@@ -1,12 +1,13 @@
 import os
-import pickle
 import sys
 from pathlib import Path
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -16,12 +17,16 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import Encoding, custom_mape, encode_all_structures
+from tools.utils import (
+    Encoding,
+    LogTransform,
+    custom_mape,
+    encode_all_structures,
+)
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -29,7 +34,8 @@ DATA_DIR = os.path.join(
 )
 
 MODELS_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "models/delta_E/"
+    str(Path(__file__).parent.parent.parent.absolute()),
+    "models/log_delta_E_generalization/",
 )
 
 encoding = Encoding.COLUMN_MASS
@@ -67,10 +73,43 @@ with console.status("") as status:
     X_raw = df[cols_dependent][df["converged"]]
     y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
 
+    # Log transformation of the output delta_E
+    log_transform = LogTransform(y_raw)
+
     # Train-Test-Split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_raw, y_raw, test_size=0.2, random_state=42
+    p = 0.2
+    n_structures = df["structure"].nunique()
+
+    species_test_set = set(
+        np.random.choice(
+            df["structure"].unique(),
+            size=int(p * n_structures),
+            replace=False,
+        )
     )
+    species_train_set = set(
+        s for s in df["structure"].unique() if s not in species_test_set
+    )
+    console.print(
+        Panel(
+            f"Train set:\t{100*len(species_train_set) / n_structures:.0f}%\n"
+            f"Test set:\t{100*len(species_test_set) / n_structures:.0f}%",
+            title="[bold]Data distribution",
+            style="blue",
+            expand=False,
+        )
+    )
+
+    train_idx = df["structure"].isin(species_train_set)
+    test_idx = df["structure"].isin(species_test_set)
+
+    assert train_idx.sum() + test_idx.sum() == len(df)
+
+    X_train = X_raw[train_idx]
+    y_train = log_transform.transform(y_raw[train_idx])
+
+    X_test = X_raw[test_idx]
+    y_test = log_transform.transform(y_raw[test_idx])
 console.log("Data loaded")
 
 # Model Definitions
@@ -127,10 +166,19 @@ linear_augmented_model = Pipeline(
     ]
 )
 
-rf_model = RandomForestRegressor(random_state=0)
+rf_model = RandomForestRegressor(n_jobs=-1, random_state=0)
 
 xgb_model = xgb.XGBRegressor(
     max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
+)
+
+lgb_model = lgb.LGBMRegressor(
+    max_depth=6,
+    num_leaves=10,
+    n_estimators=20000,
+    learning_rate=1.0,
+    n_jobs=-1,
+    random_state=0,
 )
 
 # detect if gpu is usable with xgboost by training on toy data
@@ -148,6 +196,7 @@ models = {
     "Augmented Linear": linear_augmented_model,
     "Random Forest": rf_model,
     "XGBoost": xgb_model,
+    # "LightGBM": lgb_model,
 }
 
 # Model training
@@ -171,13 +220,33 @@ with console.status("") as status:
         y_pred_test = model.predict(X_test)
 
         for loss_name, loss_fn in [
+            ("MSE - log", mean_squared_error),
+            ("MAE - log", mean_absolute_error),
+            ("MAPE - log", mean_absolute_percentage_error),
+        ]:
+            train_loss = loss_fn(y_train, y_pred_train)
+            test_loss = loss_fn(y_test, y_pred_test)
+            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
+
+        # we transform the predictions back to the original form and evaluate
+        y_pred_origin_train = log_transform.inverse_transform(
+            y_pred_train.squeeze()
+        )
+        y_pred_origin_test = log_transform.inverse_transform(
+            y_pred_test.squeeze()
+        )
+
+        y_origin_train = log_transform.inverse_transform(y_train.squeeze())
+        y_origin_test = log_transform.inverse_transform(y_test.squeeze())
+
+        for loss_name, loss_fn in [
             ("MSE", mean_squared_error),
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
             ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
         ]:
-            train_loss = loss_fn(y_train, y_pred_train)
-            test_loss = loss_fn(y_test, y_pred_test)
+            train_loss = loss_fn(y_origin_train, y_pred_origin_train)
+            test_loss = loss_fn(y_origin_test, y_pred_origin_test)
             table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
 
         console.print(table)
@@ -191,13 +260,19 @@ for model_name, _ in models.items():
     table.add_column(model_name, justify="center", style="yellow")
 
 idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
-results = [np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())]
+results = [
+    log_transform.inverse_transform(
+        np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())
+    )
+]
 for model_name, model in models.items():
     results.append(
-        np.array(
-            model.predict(
-                X_test.loc[X_test.index.intersection(idx_sample)]
-            ).squeeze()
+        log_transform.inverse_transform(
+            np.array(
+                model.predict(
+                    X_test.loc[X_test.index.intersection(idx_sample)]
+                ).squeeze()
+            )
         )
     )
 
@@ -205,20 +280,9 @@ for i in range(n_sample):
     table.add_row(*[f"{r[i]:.3E}" for r in results],)
 console.print(table)
 
-if input("Save models? (y/[n]) ") == "y":
-    save_models = {
-        "Random Forest": (rf_model, "random_forest_model.pkl"),
-        # "Gradient Boosting": (gb_model, "gb_model.pkl"),
-        "XGBoost": (xgb_model, "xgb_model.pkl"),
-    }
 
-    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
-    results_file = os.path.join(MODELS_DIR, "results.html")
-    console.save_html(results_file)
-    console.print(f"Results stored in {results_file}")
-    with console.status("[bold green]Saving models...") as status:
-        for model_name, (model, filename) in save_models.items():
-            modelpath = MODELS_DIR + filename
-            with open(modelpath, "wb") as file:
-                pickle.dump(model, file)
-            console.log(f"[green]Saved {model_name} to {modelpath}[/green]")
+# store the terminal output
+Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
+results_file = os.path.join(MODELS_DIR, f"results_{encoding.value}.html")
+console.save_html(results_file)
+console.print(f"Results stored in {results_file}")

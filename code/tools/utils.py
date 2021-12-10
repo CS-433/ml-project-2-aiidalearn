@@ -124,7 +124,12 @@ def encode_all_structures(
     return df
 
 
-def custom_mape(y_true, y_pred):
+def custom_mape(y_true, y_pred, shift=False):
+    if shift:
+        miny2 = sorted(set(np.array(y_true).flatten()))[:2]
+        bias = -miny2[0] + (miny2[1] - miny2[0]) / 10
+        y_true = y_true + bias
+        y_pred = y_pred + bias
     return np.mean(
         np.divide(
             np.abs(y_true - y_pred),
@@ -133,3 +138,18 @@ def custom_mape(y_true, y_pred):
             out=np.zeros_like(y_true),
         )
     )
+
+
+class LogTransform:
+    def __init__(self, y):
+        self.miny = float(np.min(y))
+        miny2 = sorted(set(np.array(y.squeeze())))[1]
+        self.eps = (miny2 - self.miny) / 10
+        self.bias = 0
+        self.bias = np.max(self.transform(y)) + 1
+
+    def transform(self, y):
+        return np.log(y - self.miny + self.eps) - self.bias
+
+    def inverse_transform(self, logy):
+        return np.exp(logy + self.bias) + self.miny - self.eps
