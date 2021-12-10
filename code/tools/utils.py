@@ -41,7 +41,7 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
         if len(atom_num) == 1:
             elements_nbrs[elt] += 1
         else:
-            elements_nbrs[elt[0]] += int(elt[1])
+            elements_nbrs[atom_num[0]] += int(atom_num[1])
     return dict(elements_nbrs)
 
 
