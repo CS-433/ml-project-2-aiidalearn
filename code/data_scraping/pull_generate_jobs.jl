@@ -19,10 +19,10 @@ function pull_generate_jobs(nelements, nsites, api_key, server, root, args...)
 
     valid_atsyms = keys(DFControl.Client.list_pseudoset(server, "sssp_efficiency"))
     
-    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[601:end]
+    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[1:600]
         sysname = sys["pretty_formula"]
         sysdir  = datadir(sysname)
-        if !ispath(joinpath(sysdir, "data.json")) && !ispath(Server(server), joinpath(root, sysname))  # For now we assume that as soon as there is a data.json, the run shouldn't be resubmitted
+        if !ispath(joinpath(sysdir, "data.json"))   # For now we assume that as soon as there is a data.json, the run shouldn't be resubmitted
             @info "Creating run for $sysname."
             mkpath(sysdir)
             cifpath = joinpath(sysdir, "$sysname.cif") 
