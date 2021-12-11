@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.dummy import DummyRegressor
 import xgboost as xgb
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
@@ -42,8 +43,6 @@ MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/sim_time/"
 )
 
-#encoding = Encoding.COLUMN_MASS
-# encoding = Encoding.ATOMIC
 encoding = Encoding.COLUMN
 target = Target.SIM_TIME
 
@@ -51,8 +50,7 @@ console = Console(record=True)
 
 # Loading Data
 X_train, X_test, y_train, y_test = data_loader(target=target, encoding=encoding, DATA_PATH=DATA_PATH, test_size=0.2,
-            generalization=False)
-
+            generalization=True)
 
 # Model definition
 with console.status("") as status:

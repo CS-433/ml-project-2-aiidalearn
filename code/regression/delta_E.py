@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import xgboost as xgb
 from rich.console import Console
 from rich.table import Table
@@ -16,62 +15,31 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import Encoding, custom_mape, encode_all_structures
+from tools.utils import Encoding, Target, custom_mape, encode_all_structures
+from tools.data_loader import data_loader
 
 # Set Up
 DATA_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 
+DATA_PATH = DATA_DIR + "data.csv"
+
 MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/delta_E/"
 )
 
 encoding = Encoding.COLUMN_MASS
+target = Target.DELTA_E
 
 console = Console(record=True)
 
-# Data Loading
-with console.status("") as status:
-    status.update("[bold blue]Loading data...")
-    df = pd.read_csv(
-        os.path.join(DATA_DIR, "data.csv"), index_col=0, na_filter=False
-    )
-
-    status.update(f"[bold blue]Encoding structures ({encoding.value})...")
-    df = encode_all_structures(df, encoding)
-
-    status.update(f"[bold blue]Splitting data...")
-    cols_raw = list(df.columns)
-    cols_trash = [
-        "structure",
-        "converged",
-        "accuracy",
-        "n_iterations",
-        "time",
-        "fermi",
-        "total_energy",
-    ]
-    cols_independent = ["delta_E"]
-    cols_drop = cols_trash + cols_independent
-
-    cols_dependent = cols_raw.copy()
-    for element in cols_drop:
-        cols_dependent.remove(element)
-
-    X_raw = df[cols_dependent][df["converged"]]
-    y_raw = np.abs(df[cols_independent][df["converged"]]).squeeze()
-
-    # Train-Test-Split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_raw, y_raw, test_size=0.2, random_state=42
-    )
-console.log("Data loaded")
+X_train, X_test, y_train, y_test = data_loader(target=target, encoding=encoding,
+                                               DATA_PATH=DATA_PATH, test_size=0.2, generalization=False)
 
 # Model Definitions
 # functions such that f(x) != 0 and f(+inf) = 0

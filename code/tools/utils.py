@@ -21,6 +21,11 @@ class Encoding(Enum):
     COLUMN = "column"
     COLUMN_MASS = "column_mass"
 
+class Target(Enum):
+    SIM_TIME = "sim_time"
+    DELTA_E = "delta_E"
+    LOG_DELTA_E = "log_delta_E"
+
 
 PERIODIC_TABLE_INFO = load_json(
     os.path.join(os.path.dirname(__file__), "periodic_table_info.json",)
