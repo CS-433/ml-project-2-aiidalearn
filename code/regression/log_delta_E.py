@@ -19,9 +19,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.data_loader import data_loader, TestSet, TestSplit
-from tools.utils import StructureEncoding, Target, custom_mape
+from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.transform import CustomLogTargetTransformer
+from tools.utils import (
+    StructureEncoding,
+    Target,
+    check_xgboost_gpu,
+    custom_mape,
+)
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -55,37 +60,38 @@ X_train, logy_train, test_sets = data_loader(
 )
 
 # Model Definitions
-linear_log_augmented_model = Pipeline(
-    [
-        ("scaler_init", StandardScaler()),
-        ("features", PolynomialFeatures(degree=2)),
-        ("scaler_final", StandardScaler()),
-        ("regressor", LinearRegression()),
-    ]
-)
+with console.status("") as status:
+    status.update("[bold blue]Initializing models...")
 
-rf_log_model = RandomForestRegressor(random_state=0)
+    linear_log_augmented_model = Pipeline(
+        [
+            ("scaler_init", StandardScaler()),
+            ("features", PolynomialFeatures(degree=2)),
+            ("scaler_final", StandardScaler()),
+            ("regressor", LinearRegression()),
+        ]
+    )
 
-xgb_log_model = xgb.XGBRegressor(
-    max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
-)
+    rf_log_model = RandomForestRegressor(random_state=0)
 
-# detect if gpu is usable with xgboost by training on toy data
-try:
-    xgb_log_model.set_params(tree_method="gpu_hist")
-    xgb_log_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
-    console.print("[italic bright_black]Using GPU for XGBoost")
-except:
-    xgb_log_model.set_params(tree_method="hist")
-    console.print("[italic bright_black]Using CPU for XGBoost")
+    xgb_log_model = xgb.XGBRegressor(
+        max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
+    )
 
-models_log = {
-    "Dummy - log": DummyRegressor(),
-    "Linear - log": LinearRegression(),
-    # "Augmented Linear - log": linear_log_augmented_model,
-    "Random Forest - log": rf_log_model,
-    "XGBoost - log": xgb_log_model,
-}
+    status.update("[bold blue]Checking GPU usability for XGBoost...")
+    if check_xgboost_gpu():
+        xgb_log_model.set_params(tree_method="gpu_hist")
+        console.print("[italic bright_black]Using GPU for XGBoost")
+    else:
+        console.print("[italic bright_black]Using CPU for XGBoost")
+
+    models_log = {
+        "Dummy - log": DummyRegressor(),
+        "Linear - log": LinearRegression(),
+        # "Augmented Linear - log": linear_log_augmented_model,
+        "Random Forest - log": rf_log_model,
+        "XGBoost - log": xgb_log_model,
+    }
 
 # Model training
 with console.status("") as status:

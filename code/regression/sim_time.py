@@ -21,8 +21,12 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 from tools.data_loader import TestSet, TestSplit, data_loader
-from tools.utils import StructureEncoding, Target, custom_mape
-
+from tools.utils import (
+    StructureEncoding,
+    Target,
+    check_xgboost_gpu,
+    custom_mape,
+)
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -89,22 +93,20 @@ with console.status("") as status:
     )
 
     status.update("[bold blue]Checking GPU usability for XGBoost...")
-    try:
+    if check_xgboost_gpu():
         xgb_model.set_params(tree_method="gpu_hist")
-        xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
         console.print("[italic bright_black]Using GPU for XGBoost")
-    except:
-        xgb_model.set_params(tree_method="hist")
+    else:
         console.print("[italic bright_black]Using CPU for XGBoost")
 
-models = {
-    "Dummy": DummyRegressor(),
-    "Linear": LinearRegression(),
-    "Augmented Linear": linear_augmented_model,
-    "Random Forest": rf_model,
-    "XGBoost": xgb_model,
-    # "LightGBM": lgbm_model,
-}
+    models = {
+        "Dummy": DummyRegressor(),
+        "Linear": LinearRegression(),
+        # "Augmented Linear": linear_augmented_model,
+        "Random Forest": rf_model,
+        "XGBoost": xgb_model,
+        # "LightGBM": lgbm_model,
+    }
 
 # Model training
 with console.status("") as status:

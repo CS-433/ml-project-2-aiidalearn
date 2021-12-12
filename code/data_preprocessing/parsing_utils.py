@@ -99,7 +99,7 @@ def print_data_summary(df: pd.DataFrame = None):
         if not os.path.exists(DATA_CSV):
             console.print("No data collected yet")
             return
-        df = pd.read_csv(DATA_CSV)
+        df = pd.read_csv(DATA_CSV, na_filter=False)
     console.print(
         Panel(
             "[blue]"

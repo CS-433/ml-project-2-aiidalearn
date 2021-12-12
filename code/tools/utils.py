@@ -7,6 +7,7 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from natsort import natsorted
 
 
@@ -51,6 +52,36 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
     return dict(elements_nbrs)
 
 
+def get_structure_encoding(structure_name, encoding) -> np.ndarray:
+    periodic_elt_list = list(PERIODIC_TABLE_INFO.keys())
+    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
+        res = np.zeros(len(PTC_COLNAMES))
+    elif encoding == StructureEncoding.ATOMIC:
+        res = np.zeros(len(periodic_elt_list))
+
+    elements_nbrs = extract_structure_elements(structure_name)
+    total_atoms = sum(list(elements_nbrs.values()))
+    total_mass = 0.0
+    for elt, nb_elt in elements_nbrs.items():
+        elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
+        total_mass += nb_elt * elt_mass
+
+    for elt, nb_elt in elements_nbrs.items():
+        if encoding == StructureEncoding.COLUMN:
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            ptc = ELEMENT_INFO["PTC"]
+            res[PTC_COLNAMES.index(ptc)] += nb_elt / total_atoms
+        elif encoding == StructureEncoding.COLUMN_MASS:
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            ptc = ELEMENT_INFO["PTC"]
+            elt_mass = ELEMENT_INFO["mass"]
+            res[PTC_COLNAMES.index(ptc)] += nb_elt * elt_mass / total_mass
+        elif encoding == StructureEncoding.ATOMIC:
+            res[periodic_elt_list.index(elt)] += nb_elt / total_atoms
+
+    return res
+
+
 def encode_structure(
     df: pd.DataFrame,
     elements_nbrs: Dict[str, int],
@@ -75,7 +106,7 @@ def encode_structure(
             ptc = ELEMENT_INFO["PTC"]
             print("-----Col encoding-----")
             print(elt, " -> ", ptc)
-            df[ptc] = nb_elt / total_atoms
+            df[ptc] += nb_elt / total_atoms
             print("--------------------")
         elif encoding == StructureEncoding.COLUMN_MASS:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
@@ -114,14 +145,14 @@ def encode_all_structures(
             if encoding == StructureEncoding.COLUMN:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
-                df.loc[df["structure"] == structure_name, ptc] = (
+                df.loc[df["structure"] == structure_name, ptc] += (
                     nb_elt / total_atoms
                 )
             elif encoding == StructureEncoding.COLUMN_MASS:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 elt_mass = ELEMENT_INFO["mass"]
-                df.loc[df["structure"] == structure_name, ptc] = (
+                df.loc[df["structure"] == structure_name, ptc] += (
                     nb_elt * elt_mass / total_mass
                 )
             elif encoding == StructureEncoding.ATOMIC:
@@ -146,3 +177,12 @@ def custom_mape(y_true, y_pred, shift=False):
             out=np.zeros_like(y_true),
         )
     )
+
+
+def check_xgboost_gpu():
+    try:
+        xgb_model = xgb.XGBRegressor(tree_method="gpu_hist")
+        xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
+        return True
+    except:
+        return False

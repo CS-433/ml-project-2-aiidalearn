@@ -20,7 +20,12 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 from tools.data_loader import TestSet, TestSplit, data_loader
-from tools.utils import StructureEncoding, Target, custom_mape
+from tools.utils import (
+    StructureEncoding,
+    Target,
+    check_xgboost_gpu,
+    custom_mape,
+)
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -52,81 +57,91 @@ X_train, y_train, test_sets = data_loader(
 )
 
 # Model Definitions
-# functions such that f(x) != 0 and f(+inf) = 0
-functions_set_1 = [
-    lambda x: np.exp(-x),
-    lambda x: 1 / (1 + x),
-    lambda x: 1 / (1 + x) ** 2,
-    lambda x: np.cos(x) * np.exp(-x),
-]
+with console.status("") as status:
+    status.update("[bold blue]Initializing models...")
 
-# functions such that f(x) = 0 and f(+inf) = 0
-functions_set_2 = [
-    lambda x: x * np.exp(-x),
-    lambda x: x / (1 + x) ** 2,
-    lambda x: x / (1 + x) ** 3,
-    lambda x: np.sin(x) * np.exp(-x),
-]
-
-linear_augmented_model = Pipeline(
-    [
-        ("scaler_init", StandardScaler()),
-        (
-            "features",
-            FeatureUnion(
-                [
-                    (f"fun_{j}", FunctionTransformer(lambda X: f(X[:, :3])))
-                    for j, f in enumerate(functions_set_1 + functions_set_2)
-                ]
-                + [
-                    (
-                        f"fun_{j}_col_{col}_1",
-                        FunctionTransformer(
-                            lambda X: f(X[:, :3] * X[:, i][:, None])
-                        ),
-                    )
-                    for j, f in enumerate(functions_set_1)
-                    for i, col in enumerate(["ecutrho", "kpoints", "ecutwfc"])
-                ]
-                + [
-                    (
-                        f"fun_{j}_col_{col}_2",
-                        FunctionTransformer(
-                            lambda X: f(X[:, 3:] * X[:, i][:, None])
-                        ),
-                    )
-                    for j, f in enumerate(functions_set_2)
-                    for i, col in enumerate(["ecutrho", "kpoints", "ecutwfc"])
-                ]
-            ),
-        ),
-        ("scaler_final", StandardScaler()),
-        ("regressor", LinearRegression()),
+    # functions such that f(x) != 0 and f(+inf) = 0
+    functions_set_1 = [
+        lambda x: np.exp(-x),
+        lambda x: 1 / (1 + x),
+        lambda x: 1 / (1 + x) ** 2,
+        lambda x: np.cos(x) * np.exp(-x),
     ]
-)
 
-rf_model = RandomForestRegressor(random_state=0)
+    # functions such that f(x) = 0 and f(+inf) = 0
+    functions_set_2 = [
+        lambda x: x * np.exp(-x),
+        lambda x: x / (1 + x) ** 2,
+        lambda x: x / (1 + x) ** 3,
+        lambda x: np.sin(x) * np.exp(-x),
+    ]
 
-xgb_model = xgb.XGBRegressor(
-    max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
-)
+    linear_augmented_model = Pipeline(
+        [
+            ("scaler_init", StandardScaler()),
+            (
+                "features",
+                FeatureUnion(
+                    [
+                        (
+                            f"fun_{j}",
+                            FunctionTransformer(lambda X: f(X[:, :3])),
+                        )
+                        for j, f in enumerate(
+                            functions_set_1 + functions_set_2
+                        )
+                    ]
+                    + [
+                        (
+                            f"fun_{j}_col_{col}_1",
+                            FunctionTransformer(
+                                lambda X: f(X[:, :3] * X[:, i][:, None])
+                            ),
+                        )
+                        for j, f in enumerate(functions_set_1)
+                        for i, col in enumerate(
+                            ["ecutrho", "kpoints", "ecutwfc"]
+                        )
+                    ]
+                    + [
+                        (
+                            f"fun_{j}_col_{col}_2",
+                            FunctionTransformer(
+                                lambda X: f(X[:, 3:] * X[:, i][:, None])
+                            ),
+                        )
+                        for j, f in enumerate(functions_set_2)
+                        for i, col in enumerate(
+                            ["ecutrho", "kpoints", "ecutwfc"]
+                        )
+                    ]
+                ),
+            ),
+            ("scaler_final", StandardScaler()),
+            ("regressor", LinearRegression()),
+        ]
+    )
 
-# detect if gpu is usable with xgboost by training on toy data
-try:
-    xgb_model.set_params(tree_method="gpu_hist")
-    xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
-    console.print("[italic bright_black]Using GPU for XGBoost")
-except:
-    xgb_model.set_params(tree_method="hist")
-    console.print("[italic bright_black]Using CPU for XGBoost")
+    rf_model = RandomForestRegressor(random_state=0)
 
-models = {
-    "Dummy": DummyRegressor(),
-    "Linear": LinearRegression(),
-    "Augmented Linear": linear_augmented_model,
-    "Random Forest": rf_model,
-    "XGBoost": xgb_model,
-}
+    xgb_model = xgb.XGBRegressor(
+        max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
+    )
+
+    status.update("[bold blue]Checking GPU usability for XGBoost...")
+    if check_xgboost_gpu():
+        xgb_model.set_params(tree_method="gpu_hist")
+        console.print("[italic bright_black]Using GPU for XGBoost")
+    else:
+        console.print("[italic bright_black]Using CPU for XGBoost")
+
+    models = {
+        "Dummy": DummyRegressor(),
+        "Linear": LinearRegression(),
+        # "Augmented Linear": linear_augmented_model,
+        "Random Forest": rf_model,
+        "XGBoost": xgb_model,
+    }
 
 # Model training
 with console.status("") as status:
@@ -143,7 +158,8 @@ with console.status("") as status:
         table = Table(title=model_name)
         table.add_column("Loss name", justify="center", style="cyan")
         table.add_column("Train", justify="center", style="green")
-        table.add_column("Test", justify="center", style="green")
+        for name, _, _ in test_sets:
+            table.add_column(f"Test - {name}", justify="center", style="green")
 
         y_pred_train = model.predict(X_train)
         y_pred_tests = [model.predict(X_test) for _, X_test, _ in test_sets]
