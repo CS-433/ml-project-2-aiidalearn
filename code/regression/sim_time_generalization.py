@@ -5,12 +5,10 @@ from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
-import pandas as pd
-from sklearn.dummy import DummyRegressor
 import xgboost as xgb
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
+from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import (
@@ -18,26 +16,19 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import (
-    Encoding,
-    Target,
-    custom_mape,
-    encode_all_structures
-)
-
 from tools.data_loader import data_loader
+from tools.utils import Encoding, Target, custom_mape
 
 # Set Up
 DATA_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 
-DATA_PATH =  DATA_DIR + "data.csv"
+DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/sim_time/"
@@ -49,8 +40,13 @@ target = Target.SIM_TIME
 console = Console(record=True)
 
 # Loading Data
-X_train, X_test, y_train, y_test = data_loader(target=target, encoding=encoding, DATA_PATH=DATA_PATH, test_size=0.2,
-            generalization=True)
+X_train, X_test, y_train, y_test = data_loader(
+    target=target,
+    encoding=encoding,
+    data_path=DATA_PATH,
+    test_size=0.2,
+    generalization=True,
+)
 
 # Model definition
 with console.status("") as status:
@@ -66,17 +62,19 @@ with console.status("") as status:
     )
 
     # best parameters from randomized grid search in corr. notebook
-    rf_params = {'n_estimators': 230, 'max_features': 'auto', 'max_depth': 40}
+    rf_params = {"n_estimators": 230, "max_features": "auto", "max_depth": 40}
     rf_model = RandomForestRegressor(random_state=0, **rf_params)
 
     # best parameters from randomized grid search in corr. notebook
-    xgb_params = {'n_estimators': 500,
-                  'min_split_loss': 0.2,
-                  'max_depth': 12,
-                  'learning_rate': 0.1,
-                  'lambda': 1,
-                  'booster': 'gbtree',
-                  'alpha': 0.5}
+    xgb_params = {
+        "n_estimators": 500,
+        "min_split_loss": 0.2,
+        "max_depth": 12,
+        "learning_rate": 0.1,
+        "lambda": 1,
+        "booster": "gbtree",
+        "alpha": 0.5,
+    }
 
     # xgb_model = xgb.XGBRegressor(
     #     max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0

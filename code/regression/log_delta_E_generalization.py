@@ -38,7 +38,7 @@ MODELS_DIR = os.path.join(
     "models/log_delta_E_generalization/",
 )
 
-encoding = Encoding.COLUMN_MASS
+encoding = Encoding.ATOMIC
 
 console = Console(record=True)
 

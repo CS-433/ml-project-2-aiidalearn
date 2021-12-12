@@ -19,15 +19,15 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import Encoding, Target, custom_mape, encode_all_structures
 from tools.data_loader import data_loader
+from tools.utils import Encoding, Target, custom_mape
 
 # Set Up
 DATA_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 
-DATA_PATH = DATA_DIR + "data.csv"
+DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/delta_E/"
@@ -38,8 +38,13 @@ target = Target.DELTA_E
 
 console = Console(record=True)
 
-X_train, X_test, y_train, y_test = data_loader(target=target, encoding=encoding,
-                                               DATA_PATH=DATA_PATH, test_size=0.2, generalization=False)
+X_train, X_test, y_train, y_test = data_loader(
+    target=target,
+    encoding=encoding,
+    data_path=DATA_PATH,
+    test_size=0.2,
+    generalization=False,
+)
 
 # Model Definitions
 # functions such that f(x) != 0 and f(+inf) = 0
@@ -176,7 +181,6 @@ console.print(table)
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
         "Random Forest": (rf_model, "random_forest_model.pkl"),
-        # "Gradient Boosting": (gb_model, "gb_model.pkl"),
         "XGBoost": (xgb_model, "xgb_model.pkl"),
     }
 

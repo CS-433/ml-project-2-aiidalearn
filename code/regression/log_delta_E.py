@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import xgboost as xgb
 from rich.console import Console
 from rich.table import Table
@@ -16,27 +15,19 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.utils import (
-    Encoding,
-    Target,
-    LogTransform,
-    custom_mape,
-    encode_all_structures,
-)
-
 from tools.data_loader import data_loader
+from tools.utils import Encoding, Target, custom_mape
 
 # Set Up
 DATA_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 
-DATA_PATH = DATA_DIR + "data.csv"
+DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/log_delta_E/"
@@ -47,8 +38,13 @@ target = Target.LOG_DELTA_E
 console = Console(record=True)
 
 # Data Loading
-X_train, X_test, logy_train, logy_test = data_loader(target=target, encoding=encoding, DATA_PATH=DATA_PATH, test_size=0.2,
-            generalization=False)
+X_train, X_test, logy_train, logy_test = data_loader(
+    target=target,
+    encoding=encoding,
+    data_path=DATA_PATH,
+    test_size=0.2,
+    generalization=False,
+)
 
 # Model Definitions
 linear_log_augmented_model = Pipeline(
