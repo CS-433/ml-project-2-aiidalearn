@@ -20,8 +20,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.data_loader import data_loader
-from tools.utils import Encoding, Target, custom_mape
+from tools.data_loader import TestSet, TestSplit, data_loader
+from tools.utils import StructureEncoding, Target, custom_mape
+
 
 # Set Up
 DATA_DIR = os.path.join(
@@ -34,18 +35,22 @@ MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/sim_time/"
 )
 
-encoding = Encoding.COLUMN
+encoding = StructureEncoding.ATOMIC
 target = Target.SIM_TIME
+test_sets_cfg = [
+    TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
+    TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
+]
 
 console = Console(record=True)
 
 # Loading Data
-X_train, X_test, y_train, y_test = data_loader(
+X_train, y_train, test_sets = data_loader(
     target=target,
     encoding=encoding,
     data_path=DATA_PATH,
-    test_size=0.2,
-    generalization=False,
+    test_sets_cfg=test_sets_cfg,
+    console=console,
 )
 
 
@@ -76,10 +81,6 @@ with console.status("") as status:
         "booster": "gbtree",
         "alpha": 0.5,
     }
-
-    # xgb_model = xgb.XGBRegressor(
-    #     max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
-    # )
 
     xgb_model = xgb.XGBRegressor(random_state=0, **xgb_params)
 
@@ -121,10 +122,11 @@ with console.status("") as status:
         table = Table(title=model_name)
         table.add_column("Loss name", justify="center", style="cyan")
         table.add_column("Train", justify="center", style="green")
-        table.add_column("Test", justify="center", style="green")
+        for name, _, _ in test_sets:
+            table.add_column(f"Test - {name}", justify="center", style="green")
 
         y_pred_train = model.predict(X_train)
-        y_pred_test = model.predict(X_test)
+        y_pred_tests = [model.predict(X_test) for _, X_test, _ in test_sets]
 
         for loss_name, loss_fn in [
             ("MSE", mean_squared_error),
@@ -133,40 +135,50 @@ with console.status("") as status:
             ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
         ]:
             train_loss = loss_fn(y_train, y_pred_train)
-            test_loss = loss_fn(y_test, y_pred_test)
-            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
+            test_losses = [
+                loss_fn(y_test, y_pred_test)
+                for (_, _, y_test), y_pred_test in zip(test_sets, y_pred_tests)
+            ]
+            table.add_row(
+                loss_name,
+                f"{train_loss:.4E}",
+                *[f"{test_loss:.4E}" for test_loss in test_losses],
+            )
 
         console.print(table)
 
 # print some samples
 n_sample = 10
 
-table = Table(title="Test samples")
-table.add_column("Real", justify="center", style="green")
-for model_name, _ in models.items():
-    table.add_column(model_name, justify="center", style="yellow")
+for test_name, X_test, y_test in test_sets:
+    table = Table(title=f"Test samples - {test_name}")
+    table.add_column("Real", justify="center", style="green")
+    for model_name, _ in models.items():
+        table.add_column(model_name, justify="center", style="yellow")
 
-idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
-results = [np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())]
-for model_name, model in models.items():
-    results.append(
-        np.array(
-            model.predict(
-                X_test.loc[X_test.index.intersection(idx_sample)]
-            ).squeeze()
+    idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
+    results = [
+        np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())
+    ]
+    for model_name, model in models.items():
+        results.append(
+            np.array(
+                model.predict(
+                    X_test.loc[X_test.index.intersection(idx_sample)]
+                ).squeeze()
+            )
         )
-    )
 
-for i in range(n_sample):
-    table.add_row(*[f"{r[i]:.3E}" for r in results],)
-console.print(table)
+    for i in range(n_sample):
+        table.add_row(*[f"{r[i]:.3E}" for r in results],)
+    console.print(table)
 
 
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
         "Random Forest": (rf_model, "random_forest_model.pkl"),
         "XGBoost": (xgb_model, "xgb_model.pkl"),
-        "LightGBM": (lgbm_model, "lgbm_model.pkl"),
+        # "LightGBM": (lgbm_model, "lgbm_model.pkl"),
     }
 
     Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)

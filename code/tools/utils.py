@@ -16,15 +16,16 @@ def load_json(filepath: str):
     return data
 
 
-class Encoding(Enum):
+class StructureEncoding(Enum):
     ATOMIC = "atomic"
     COLUMN = "column"
     COLUMN_MASS = "column_mass"
 
+
 class Target(Enum):
-    SIM_TIME = "sim_time"
+    SIM_TIME = "time"
     DELTA_E = "delta_E"
-    LOG_DELTA_E = "log_delta_E"
+    CONVERGED = "converged"
 
 
 PERIODIC_TABLE_INFO = load_json(
@@ -51,7 +52,9 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
 
 
 def encode_structure(
-    df: pd.DataFrame, elements_nbrs: Dict[str, int], encoding: Encoding,
+    df: pd.DataFrame,
+    elements_nbrs: Dict[str, int],
+    encoding: StructureEncoding,
 ):
     total_atoms = sum(list(elements_nbrs.values()))
     total_mass = 0.0
@@ -59,22 +62,22 @@ def encode_structure(
         elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
         total_mass += nb_elt * elt_mass
 
-    if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
+    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
-    elif encoding == Encoding.ATOMIC:
+    elif encoding == StructureEncoding.ATOMIC:
         for element in PERIODIC_TABLE_INFO:
             df = df.assign(**{element: 0.0})
 
     for elt, nb_elt in elements_nbrs.items():
-        if encoding == Encoding.COLUMN:
+        if encoding == StructureEncoding.COLUMN:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
             ptc = ELEMENT_INFO["PTC"]
             print("-----Col encoding-----")
             print(elt, " -> ", ptc)
             df[ptc] = nb_elt / total_atoms
             print("--------------------")
-        elif encoding == Encoding.COLUMN_MASS:
+        elif encoding == StructureEncoding.COLUMN_MASS:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
             ptc = ELEMENT_INFO["PTC"]
             elt_mass = ELEMENT_INFO["mass"]
@@ -83,19 +86,19 @@ def encode_structure(
             print(f"Mass of {elt}: {elt_mass:.3f}")
             df[ptc] += nb_elt * elt_mass / total_mass
             print("----------------------")
-        elif encoding == Encoding.ATOMIC:
+        elif encoding == StructureEncoding.ATOMIC:
             df = df.assign(**{elt: nb_elt / total_atoms})
 
     return df
 
 
 def encode_all_structures(
-    df: pd.DataFrame, encoding: Encoding,
+    df: pd.DataFrame, encoding: StructureEncoding,
 ):
-    if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
+    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
-    elif encoding == Encoding.ATOMIC:
+    elif encoding == StructureEncoding.ATOMIC:
         for element in PERIODIC_TABLE_INFO:
             df = df.assign(**{element: 0.0})
 
@@ -108,20 +111,20 @@ def encode_all_structures(
             total_mass += nb_elt * elt_mass
 
         for elt, nb_elt in elements_nbrs.items():
-            if encoding == Encoding.COLUMN:
+            if encoding == StructureEncoding.COLUMN:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 df.loc[df["structure"] == structure_name, ptc] = (
                     nb_elt / total_atoms
                 )
-            elif encoding == Encoding.COLUMN_MASS:
+            elif encoding == StructureEncoding.COLUMN_MASS:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 elt_mass = ELEMENT_INFO["mass"]
                 df.loc[df["structure"] == structure_name, ptc] = (
                     nb_elt * elt_mass / total_mass
                 )
-            elif encoding == Encoding.ATOMIC:
+            elif encoding == StructureEncoding.ATOMIC:
                 df.loc[df["structure"] == structure_name, elt] = (
                     nb_elt / total_atoms
                 )
@@ -143,18 +146,3 @@ def custom_mape(y_true, y_pred, shift=False):
             out=np.zeros_like(y_true),
         )
     )
-
-
-class LogTransform:
-    def __init__(self, y):
-        self.miny = float(np.min(y))
-        miny2 = sorted(set(np.array(y.squeeze())))[1]
-        self.eps = (miny2 - self.miny) / 10
-        self.bias = 0
-        self.bias = np.max(self.transform(y)) + 1
-
-    def transform(self, y):
-        return np.log(y - self.miny + self.eps) - self.bias
-
-    def inverse_transform(self, logy):
-        return np.exp(logy + self.bias) + self.miny - self.eps
