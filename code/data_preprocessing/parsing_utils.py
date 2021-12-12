@@ -96,6 +96,9 @@ def print_data_summary(df: pd.DataFrame = None):
     # print a summary on the collected data
     console = Console()
     if df is None:
+        if not os.path.exists(DATA_CSV):
+            console.print("No data collected yet")
+            return
         df = pd.read_csv(DATA_CSV)
     console.print(
         Panel(
@@ -162,6 +165,7 @@ def parse_all_data_json(
 
 
 if __name__ == "__main__":
+    print_data_summary()
     if not (
         check_parsing(DATA_DIR, DATA_CSV)
         and input("Reparse data? (y/[n]) ") != "y"
