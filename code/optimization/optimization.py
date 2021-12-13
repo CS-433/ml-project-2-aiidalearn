@@ -161,7 +161,7 @@ if __name__ == "__main__":
     console = Console()
     with console.status("Loading models..."):
         delta_E_model, sim_time_model, log_delta_E_model = load_models(
-            "xgb_model.pkl", "xgb_model.pkl", "xgb_model.pkl"
+            "random_forest_model.pkl", "random_forest_model.pkl", "random_forest_model.pkl"
         )
 
     structure_list = ["AgCl", "BaS"]
