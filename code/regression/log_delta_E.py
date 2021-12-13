@@ -40,7 +40,8 @@ MODELS_DIR = os.path.join(
 )
 
 BASELINES_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "baselines/log_delta_E/"
+    str(Path(__file__).parent.parent.parent.absolute()),
+    "baselines/log_delta_E/",
 )
 
 encoding = StructureEncoding.ATOMIC
@@ -61,6 +62,7 @@ X_train, logy_train, test_sets = data_loader(
     test_sets_cfg=test_sets_cfg,
     target_transformer=target_transformer,
     console=console,
+    remove_ref_rows=True,
 )
 
 # Model Definitions
@@ -203,6 +205,13 @@ for test_name, X_test, logy_test in test_sets:
     for i in range(n_sample):
         table.add_row(*[f"{r[i]:.3E}" for r in results],)
     console.print(table)
+
+if input("Save results as baseline? (html only) (y/[n]) ") == "y":
+    Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
+    filename = f"results_{encoding.value}.html"
+    results_file = os.path.join(BASELINES_DIR, filename)
+    console.save_html(results_file)
+    console.log(f"[green]Results stored in {results_file}")
 
 # save results
 if input("Save models? (y/[n]) ") == "y":

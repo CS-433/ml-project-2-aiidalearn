@@ -59,6 +59,7 @@ X_train, y_train, test_sets = data_loader(
     data_path=DATA_PATH,
     test_sets_cfg=test_sets_cfg,
     console=console,
+    remove_ref_rows=True,
 )
 
 
@@ -179,6 +180,13 @@ for test_name, X_test, y_test in test_sets:
         table.add_row(*[f"{r[i]:.3E}" for r in results],)
     console.print(table)
 
+
+if input("Save results as baseline? (html only) (y/[n]) ") == "y":
+    Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
+    filename = f"results_{encoding.value}.html"
+    results_file = os.path.join(BASELINES_DIR, filename)
+    console.save_html(results_file)
+    console.log(f"[green]Results stored in {results_file}")
 
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
