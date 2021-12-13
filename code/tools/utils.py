@@ -176,7 +176,7 @@ def encode_all_structures(
                 blocks = ["s", "p", "d", "f"]
                 for block in blocks:
                     df.loc[df["structure"] == structure_name, block] += (
-                            valence_band[block]/valence_band['outermost']
+                        valence_band[block] / valence_band["outermost"]
                     )
 
     return df
@@ -184,14 +184,14 @@ def encode_all_structures(
 
 def parse_valence_band(valence_band_str):
     orbitals = valence_band_str.split("-")
-    valence_band = {'s': 0.0, 'p': 0.0, 'd': 0.0, 'f': 0.0, 'outermost': 0.0}
+    valence_band = {"s": 0.0, "p": 0.0, "d": 0.0, "f": 0.0, "outermost": 0.0}
     for orbital_str in orbitals:
         key = orbital_str[1]
-        value = int(orbital_str.split('^')[-1])
+        value = int(orbital_str.split("^")[-1])
         valence_band[key] += value
 
     outermost_orbital = orbitals[-1]
-    valence_band['outermost'] = int(outermost_orbital[0])
+    valence_band["outermost"] = int(outermost_orbital[0])
     return valence_band
 
 
@@ -209,6 +209,16 @@ def custom_mape(y_true, y_pred, shift=False):
             out=np.zeros_like(y_true),
         )
     )
+
+
+def absolute_percentage_error(y_true, y_pred):
+    epsilon = np.finfo(np.float64).eps
+    return np.abs(y_pred - y_true) / np.maximum(np.abs(y_true), epsilon)
+
+
+def percentile_absolute_percentage_error(y_true, y_pred, percentile=50):
+    ape = absolute_percentage_error(y_true, y_pred)
+    return np.percentile(ape, percentile)
 
 
 def check_xgboost_gpu():

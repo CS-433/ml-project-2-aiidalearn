@@ -26,6 +26,7 @@ from tools.utils import (
     Target,
     check_xgboost_gpu,
     custom_mape,
+    percentile_absolute_percentage_error,
 )
 
 # Set Up
@@ -140,6 +141,14 @@ with console.status("") as status:
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
             ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
+            (
+                "50%-APE",
+                lambda a, b: percentile_absolute_percentage_error(a, b, 50),
+            ),
+            (
+                "90%-APE",
+                lambda a, b: percentile_absolute_percentage_error(a, b, 90),
+            ),
         ]:
             train_loss = loss_fn(y_train, y_pred_train)
             test_losses = [
