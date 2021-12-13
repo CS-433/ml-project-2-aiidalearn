@@ -7,9 +7,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from rich.console import Console
+from rich.progress import track
 from scipy.optimize import differential_evolution
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
+from tools.transform import CustomLogTargetTransformer
 from tools.utils import (
     PERIODIC_TABLE_INFO,
     PTC_COLNAMES,
@@ -30,30 +32,25 @@ DATA_PATH = os.path.join(ROOT_DIR, "data/data.csv")
 
 
 def load_models(
-    delta_E_model_name="random_forest_model.pkl",
-    sim_time_model_name="random_forest_model.pkl",
-    log_delta_E_model_name="random_forest_model.pkl",
+    delta_E_model_name=None,
+    log_delta_E_model_name=None,
+    sim_time_model_name=None,
 ):
-    delta_E_model_file = os.path.join(DELTA_E_MODELS_DIR, delta_E_model_name)
-    sim_time_model_file = os.path.join(
-        SIM_TIME_MODELS_DIR, sim_time_model_name
-    )
-    log_delta_E_model_file = os.path.join(
-        LOG_DELTA_E_MODELS_DIR, log_delta_E_model_name
-    )
-
-    for model_file in [
-        delta_E_model_file,
-        sim_time_model_file,
-        log_delta_E_model_file,
+    for model_name, model_dir in [
+        (delta_E_model_name, DELTA_E_MODELS_DIR),
+        (log_delta_E_model_name, LOG_DELTA_E_MODELS_DIR),
+        (sim_time_model_name, SIM_TIME_MODELS_DIR),
     ]:
-        if not os.path.exists(model_file):
+        if model_name is None:
+            continue
+        model_path = os.path.join(model_dir, model_name)
+        if not os.path.exists(model_path):
             raise FileNotFoundError(
                 "Model file "
-                + model_file
+                + model_path
                 + " does not exist. Please run the training script first."
             )
-        with open(model_file, "rb") as file:
+        with open(model_path, "rb") as file:
             yield pickle.load(file)
 
 
@@ -83,15 +80,29 @@ def sim_time_prediction(x, model, structure_encoding, sim_time_features):
 
 
 def get_optimal_parameters(
-    delta_E_model,
-    sim_time_model,
     structure_name: str,
     max_delta_E: float,
     encoding_delta_E: StructureEncoding,
     encoding_sim_time: StructureEncoding,
     feature_bounds: dict,
+    delta_E_model=None,
+    sim_time_model=None,
+    log_delta_E_model=None,
     verbose=False,
 ):
+    if log_delta_E_model is not None and delta_E_model is not None:
+        raise ValueError(
+            "Only one of delta_E_model and log_delta_E_model can be provided"
+        )
+
+    if log_delta_E_model is None and delta_E_model is None:
+        raise ValueError(
+            "One of delta_E_model and log_delta_E_model must be provided"
+        )
+
+    if sim_time_model is None:
+        raise ValueError("sim_time_model must be provided")
+
     structure_encoding_delta_E = get_structure_encoding(
         structure_name, encoding_delta_E
     )
@@ -99,18 +110,38 @@ def get_optimal_parameters(
         structure_name, encoding_sim_time
     )
 
-    delta_E_pred_func = lambda x: delta_E_prediction(
-        sanitize_input(x),
-        delta_E_model,
-        structure_encoding_delta_E,
-        get_features_name(encoding_delta_E),
-    )
-    sim_time_pred_func = lambda x: sim_time_prediction(
-        sanitize_input(x),
-        sim_time_model,
-        structure_encoding_sim_time,
-        get_features_name(encoding_sim_time),
-    )
+    if delta_E_model is not None:
+
+        def delta_E_pred_func(x):
+            return delta_E_prediction(
+                sanitize_input(x),
+                delta_E_model,
+                structure_encoding_delta_E,
+                get_features_name(encoding_delta_E),
+            )
+
+    if log_delta_E_model is not None:
+        transformer = CustomLogTargetTransformer()
+        y = pd.read_csv(DATA_PATH, na_filter=False)["delta_E"]
+        transformer.fit(y)
+
+        def delta_E_pred_func(x):
+            return transformer.inverse_transform(
+                delta_E_prediction(
+                    sanitize_input(x),
+                    log_delta_E_model,
+                    structure_encoding_delta_E,
+                    get_features_name(encoding_delta_E),
+                )
+            )
+
+    def sim_time_pred_func(x):
+        return sim_time_prediction(
+            sanitize_input(x),
+            sim_time_model,
+            structure_encoding_sim_time,
+            get_features_name(encoding_sim_time),
+        )
 
     mu = 1e100
 
@@ -160,41 +191,44 @@ def get_feature_bounds(data_path):
 if __name__ == "__main__":
     console = Console()
     with console.status("Loading models..."):
-        delta_E_model, sim_time_model, log_delta_E_model = load_models(
-            "random_forest_model.pkl", "random_forest_model.pkl", "random_forest_model.pkl"
+        log_delta_E_model, sim_time_model = load_models(
+            log_delta_E_model_name="random_forest_model.pkl",
+            sim_time_model_name="random_forest_model.pkl",
         )
 
     structure_list = ["AgCl", "BaS"]
     max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
     predictions = []
-    with console.status("") as status:
-        for structure_name in structure_list:
-            for max_delta_E in max_delta_E_list:
-                status.update(
-                    f"Optimizing parameters... Structure: {structure_name} ∆E_max: {max_delta_E:.2e}"
-                )
-                params, sim_time_pred, delta_E_pred = get_optimal_parameters(
-                    delta_E_model=delta_E_model,
-                    sim_time_model=sim_time_model,
-                    structure_name=structure_name,
-                    max_delta_E=max_delta_E,
-                    encoding_delta_E=StructureEncoding.ATOMIC,
-                    encoding_sim_time=StructureEncoding.ATOMIC,
-                    feature_bounds=get_feature_bounds(DATA_PATH),
-                )
-                predictions.append(
-                    {
-                        "structure": structure_name,
-                        "max_delta_E": float(max_delta_E),
-                        "params": {
-                            "ecutrho": int(params[0]),
-                            "k_density": int(params[1]),
-                            "ecutwfc": int(params[2]),
-                        },
-                        "sim_time_pred": float(sim_time_pred),
-                        "delta_E_pred": float(delta_E_pred),
-                    }
-                )
+    for structure_name in track(
+        structure_list, description="Optimizing parameters...", console=console
+    ):
+        for max_delta_E in max_delta_E_list:
+            console.print(
+                f"Structure: {structure_name}\t∆E_max: {max_delta_E:.2e}"
+            )
+            params, sim_time_pred, delta_E_pred = get_optimal_parameters(
+                # delta_E_model=delta_E_model,
+                log_delta_E_model=log_delta_E_model,
+                sim_time_model=sim_time_model,
+                structure_name=structure_name,
+                max_delta_E=max_delta_E,
+                encoding_delta_E=StructureEncoding.ATOMIC,
+                encoding_sim_time=StructureEncoding.ATOMIC,
+                feature_bounds=get_feature_bounds(DATA_PATH),
+            )
+            predictions.append(
+                {
+                    "structure": structure_name,
+                    "max_delta_E": float(max_delta_E),
+                    "params": {
+                        "ecutrho": int(params[0]),
+                        "k_density": int(params[1]),
+                        "ecutwfc": int(params[2]),
+                    },
+                    "sim_time_pred": float(sim_time_pred),
+                    "delta_E_pred": float(delta_E_pred),
+                }
+            )
 
     # saving in json format
     with open(
