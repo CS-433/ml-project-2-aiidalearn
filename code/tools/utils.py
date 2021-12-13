@@ -21,6 +21,7 @@ class StructureEncoding(Enum):
     ATOMIC = "atomic"
     COLUMN = "column"
     COLUMN_MASS = "column_mass"
+    VALENCE_CONFIG = "valence_configuration"
 
 
 class Target(Enum):
@@ -133,9 +134,17 @@ def encode_all_structures(
         for element in PERIODIC_TABLE_INFO:
             df = df.assign(**{element: 0.0})
 
+    elif encoding == StructureEncoding.VALENCE_CONFIG:
+        blocks = ["s", "p", "d", "f"]
+        for block in blocks:
+            df = df.assign(**{block: 0.0})
+
+    df = df.assign(**{"total_atoms": 0.0})
+
     for structure_name in df["structure"].unique():
         elements_nbrs = extract_structure_elements(structure_name)
         total_atoms = sum(list(elements_nbrs.values()))
+        df.loc[df["structure"] == structure_name, "total_atoms"] += total_atoms
         total_mass = 0.0
         for elt, nb_elt in elements_nbrs.items():
             elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
@@ -160,7 +169,30 @@ def encode_all_structures(
                     nb_elt / total_atoms
                 )
 
+            elif encoding == StructureEncoding.VALENCE_CONFIG:
+                ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+                valence_band_str = ELEMENT_INFO["valence_band"]
+                valence_band = parse_valence_band(valence_band_str)
+                blocks = ["s", "p", "d", "f"]
+                for block in blocks:
+                    df.loc[df["structure"] == structure_name, block] += (
+                            valence_band[block]/valence_band['outermost']
+                    )
+
     return df
+
+
+def parse_valence_band(valence_band_str):
+    orbitals = valence_band_str.split("-")
+    valence_band = {'s': 0.0, 'p': 0.0, 'd': 0.0, 'f': 0.0, 'outermost': 0.0}
+    for orbital_str in orbitals:
+        key = orbital_str[1]
+        value = int(orbital_str.split('^')[-1])
+        valence_band[key] += value
+
+    outermost_orbital = orbitals[-1]
+    valence_band['outermost'] = int(outermost_orbital[0])
+    return valence_band
 
 
 def custom_mape(y_true, y_pred, shift=False):

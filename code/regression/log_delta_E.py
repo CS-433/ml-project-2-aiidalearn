@@ -39,6 +39,10 @@ MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/log_delta_E/"
 )
 
+BASELINES_DIR = os.path.join(
+    str(Path(__file__).parent.parent.parent.absolute()), "baselines/log_delta_E/"
+)
+
 encoding = StructureEncoding.ATOMIC
 target = Target.DELTA_E
 target_transformer = CustomLogTargetTransformer()

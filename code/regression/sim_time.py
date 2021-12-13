@@ -39,6 +39,10 @@ MODELS_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "models/sim_time/"
 )
 
+BASELINES_DIR = os.path.join(
+    str(Path(__file__).parent.parent.parent.absolute()), "baselines/sim_time/"
+)
+
 encoding = StructureEncoding.ATOMIC
 target = Target.SIM_TIME
 test_sets_cfg = [
