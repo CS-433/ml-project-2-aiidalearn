@@ -43,7 +43,7 @@ BASELINES_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "baselines/log_delta_E/"
 )
 
-encoding = StructureEncoding.ATOMIC
+encoding = StructureEncoding.VALENCE_CONFIG
 target = Target.DELTA_E
 target_transformer = CustomLogTargetTransformer()
 test_sets_cfg = [
@@ -203,6 +203,13 @@ for test_name, X_test, logy_test in test_sets:
     for i in range(n_sample):
         table.add_row(*[f"{r[i]:.3E}" for r in results],)
     console.print(table)
+
+if input("Save results as baseline? (html only) (y/[n]) ") == "y":
+    Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
+    filename = "results_" + encoding.name + ".html"
+    results_file = os.path.join(BASELINES_DIR, filename)
+    console.save_html(results_file)
+    console.log(f"[green]Results stored in {results_file}")
 
 # save results
 if input("Save models? (y/[n]) ") == "y":

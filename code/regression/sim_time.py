@@ -43,7 +43,7 @@ BASELINES_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "baselines/sim_time/"
 )
 
-encoding = StructureEncoding.ATOMIC
+encoding = StructureEncoding.VALENCE_CONFIG
 target = Target.SIM_TIME
 test_sets_cfg = [
     TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
@@ -179,6 +179,12 @@ for test_name, X_test, y_test in test_sets:
         table.add_row(*[f"{r[i]:.3E}" for r in results],)
     console.print(table)
 
+if input("Save results as baseline? (html only) (y/[n]) ") == "y":
+    Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
+    filename = "results_" + encoding.name + ".html"
+    results_file = os.path.join(BASELINES_DIR, filename)
+    console.save_html(results_file)
+    console.log(f"[green]Results stored in {results_file}")
 
 if input("Save models? (y/[n]) ") == "y":
     save_models = {
