@@ -59,6 +59,7 @@ X_train, y_train, test_sets = data_loader(
     data_path=DATA_PATH,
     test_sets_cfg=test_sets_cfg,
     console=console,
+    remove_ref_rows=True,
 )
 
 
@@ -182,6 +183,13 @@ for test_name, X_test, y_test in test_sets:
 if input("Save results as baseline? (html only) (y/[n]) ") == "y":
     Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
     filename = "results_" + encoding.name + ".html"
+    results_file = os.path.join(BASELINES_DIR, filename)
+    console.save_html(results_file)
+    console.log(f"[green]Results stored in {results_file}")
+
+if input("Save results as baseline? (html only) (y/[n]) ") == "y":
+    Path(BASELINES_DIR).mkdir(parents=True, exist_ok=True)
+    filename = f"results_{encoding.value}.html"
     results_file = os.path.join(BASELINES_DIR, filename)
     console.save_html(results_file)
     console.log(f"[green]Results stored in {results_file}")

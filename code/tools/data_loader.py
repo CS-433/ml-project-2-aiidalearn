@@ -62,6 +62,7 @@ def base_loader(
     cols_target: List[str],
     structure_encoding: StructureEncoding = None,
     cols_trash: List[str] = None,
+    remove_ref_rows: bool = False,
 ):
     df = pd.read_csv(data_path, index_col=0, na_filter=False)
 
@@ -69,6 +70,11 @@ def base_loader(
         df = encode_all_structures(df, structure_encoding)
 
     df["delta_E"] = np.abs(df["delta_E"])
+
+    if remove_ref_rows:
+        df = df.loc[df["delta_E"] != 0]
+
+    df.reset_index(drop=True, inplace=True)
 
     if cols_trash is None:
         cols_trash = []
@@ -109,6 +115,7 @@ def data_loader(
     test_sets_cfg: List[TestSet] = None,
     target_transformer: TransformerMixin = None,
     console: Console = None,
+    remove_ref_rows: bool = False,
 ):
     if console is None:
         console = Console()
@@ -121,6 +128,7 @@ def data_loader(
             cols_target=cols_target,
             structure_encoding=encoding,
             cols_trash=cols_trash,
+            remove_ref_rows=remove_ref_rows,
         )
 
         if target != Target.CONVERGED:
