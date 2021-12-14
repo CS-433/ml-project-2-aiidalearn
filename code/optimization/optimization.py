@@ -16,7 +16,6 @@ from tools.utils import (
     PERIODIC_TABLE_INFO,
     PTC_COLNAMES,
     StructureEncoding,
-    Target,
     get_structure_encoding,
 )
 
