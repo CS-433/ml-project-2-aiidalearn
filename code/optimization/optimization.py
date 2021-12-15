@@ -15,7 +15,6 @@ ROOT_DIR = os.path.dirname(
 )
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
-from tools.transform import CustomLogTargetTransformer
 from tools.utils import (
     PERIODIC_TABLE_INFO,
     PTC_COLNAMES,
@@ -27,7 +26,8 @@ DELTA_E_MODELS_DIR = os.path.join(ROOT_DIR, "models/delta_E/")
 LOG_DELTA_E_MODELS_DIR = os.path.join(ROOT_DIR, "models/log_delta_E/")
 SIM_TIME_MODELS_DIR = os.path.join(ROOT_DIR, "models/sim_time/")
 
-DATA_PATH = os.path.join(ROOT_DIR, "data/data.csv")
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 
 def load_models(
@@ -213,8 +213,17 @@ if __name__ == "__main__":
 
     feature_bounds = get_feature_bounds(DATA_PATH)
 
-    structure_list = ["AgCl", "BaS"]
-    max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
+    # structure_list = ["Ag1Cl1", "Ba1S1"]
+    # get all the structures in the data folder
+    structure_list = list(
+        set(
+            structure
+            for structure in os.listdir(DATA_DIR)
+            if os.path.isdir(os.path.join(DATA_DIR, structure))
+        )
+    )[:100]
+
+    max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
     predictions = []
     for structure_name in track(
         structure_list, description="Optimizing parameters...", console=console
