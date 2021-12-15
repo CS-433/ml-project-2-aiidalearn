@@ -11,26 +11,24 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_as_baseline, save_datasets, save_models
 from tools.train import evaluate_models, print_test_samples, train_models
 from tools.utils import StructureEncoding, Target, check_xgboost_gpu
 
-# Set Up
-DATA_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "data/"
-)
+# Define global variables
+DATA_DIR = os.path.join(ROOT_DIR, "data/")
 
 DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
-MODELS_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "models/delta_E/"
-)
+MODELS_DIR = os.path.join(ROOT_DIR, "models/delta_E/")
 
-BASELINES_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "baselines/delta_E/"
-)
+BASELINES_DIR = os.path.join(ROOT_DIR, "baselines/delta_E/")
 
 
 def instantiate_models(console: Console):
@@ -124,9 +122,11 @@ def instantiate_models(console: Console):
 if __name__ == "__main__":
     console = Console(record=True)
     prompt_user = False
-    for encoding in StructureEncoding:
+
+    encodings = [StructureEncoding.ATOMIC]
+    # encodings = list(StructureEncoding)
+    for encoding in encodings:
         console.log(f"[bold green]Started pipeline for {encoding}")
-    # encoding = StructureEncoding.ATOMIC
         target = Target.DELTA_E
         test_sets_cfg = [
             TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
@@ -150,11 +150,20 @@ if __name__ == "__main__":
         save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
 
         models_to_save = {
-            "Random Forest": (models["Random Forest"], "random_forest_model.pkl"),
+            "Random Forest": (
+                models["Random Forest"],
+                "random_forest_model.pkl",
+            ),
             "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
         }
         save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
         save_datasets(
-            X_train, y_train, test_sets, encoding, console, MODELS_DIR, prompt_user
+            X_train,
+            y_train,
+            test_sets,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
         )

@@ -10,12 +10,14 @@ from rich.console import Console
 from rich.panel import Panel
 from sklearn.base import TransformerMixin
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import StructureEncoding, Target, encode_all_structures
 
-DATA_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "data/"
-)
+DATA_DIR = os.path.join(ROOT_DIR, "data/")
 
 DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
@@ -168,6 +170,7 @@ def data_loader(
             for i, cfg in test_sets_rows:
                 n_test_rows = int(cfg.size * X_raw.shape[0])
                 # get randomly n_test_rows rows from train_idx true rows
+                np.random.seed(42)
                 test_idx = np.random.choice(
                     np.where(train_mask)[0], size=n_test_rows, replace=False
                 )

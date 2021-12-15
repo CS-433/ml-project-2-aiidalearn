@@ -56,9 +56,9 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
 def get_structure_encoding(structure_name, encoding) -> np.ndarray:
     periodic_elt_list = list(PERIODIC_TABLE_INFO.keys())
     if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
-        res = np.zeros(len(PTC_COLNAMES))
+        res = np.zeros(len(PTC_COLNAMES) + 1)
     elif encoding == StructureEncoding.ATOMIC:
-        res = np.zeros(len(periodic_elt_list))
+        res = np.zeros(len(periodic_elt_list) + 1)
 
     elements_nbrs = extract_structure_elements(structure_name)
     total_atoms = sum(list(elements_nbrs.values()))
@@ -79,49 +79,18 @@ def get_structure_encoding(structure_name, encoding) -> np.ndarray:
             res[PTC_COLNAMES.index(ptc)] += nb_elt * elt_mass / total_mass
         elif encoding == StructureEncoding.ATOMIC:
             res[periodic_elt_list.index(elt)] += nb_elt / total_atoms
+        elif encoding == StructureEncoding.VALENCE_CONFIG:
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            valence_band_str = ELEMENT_INFO["valence_band"]
+            valence_band = parse_valence_band(valence_band_str)
+            blocks = ["s", "p", "d", "f"]
+            for idx_block, block in enumerate(blocks):
+                res[idx_block] += (
+                    valence_band[block] / valence_band["outermost"]
+                )
+    res[-1] = total_atoms
 
     return res
-
-
-def encode_structure(
-    df: pd.DataFrame,
-    elements_nbrs: Dict[str, int],
-    encoding: StructureEncoding,
-):
-    total_atoms = sum(list(elements_nbrs.values()))
-    total_mass = 0.0
-    for elt, nb_elt in elements_nbrs.items():
-        elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
-        total_mass += nb_elt * elt_mass
-
-    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
-        for colname in PTC_COLNAMES:
-            df = df.assign(**{colname: 0.0})
-    elif encoding == StructureEncoding.ATOMIC:
-        for element in PERIODIC_TABLE_INFO:
-            df = df.assign(**{element: 0.0})
-
-    for elt, nb_elt in elements_nbrs.items():
-        if encoding == StructureEncoding.COLUMN:
-            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-            ptc = ELEMENT_INFO["PTC"]
-            print("-----Col encoding-----")
-            print(elt, " -> ", ptc)
-            df[ptc] += nb_elt / total_atoms
-            print("--------------------")
-        elif encoding == StructureEncoding.COLUMN_MASS:
-            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
-            ptc = ELEMENT_INFO["PTC"]
-            elt_mass = ELEMENT_INFO["mass"]
-            print("--Col mass encoding---")
-            print(elt, " -> ", ptc)
-            print(f"Mass of {elt}: {elt_mass:.3f}")
-            df[ptc] += nb_elt * elt_mass / total_mass
-            print("----------------------")
-        elif encoding == StructureEncoding.ATOMIC:
-            df = df.assign(**{elt: nb_elt / total_atoms})
-
-    return df
 
 
 def encode_all_structures(
@@ -168,7 +137,6 @@ def encode_all_structures(
                 df.loc[df["structure"] == structure_name, elt] = (
                     nb_elt / total_atoms
                 )
-
             elif encoding == StructureEncoding.VALENCE_CONFIG:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 valence_band_str = ELEMENT_INFO["valence_band"]

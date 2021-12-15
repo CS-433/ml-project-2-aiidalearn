@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -10,7 +11,11 @@ from sklearn.metrics import (
     mean_squared_error,
 )
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import custom_mape, percentile_absolute_percentage_error
 
 

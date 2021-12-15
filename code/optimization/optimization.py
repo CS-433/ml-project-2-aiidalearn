@@ -10,7 +10,11 @@ from rich.console import Console
 from rich.progress import track
 from scipy.optimize import differential_evolution
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.transform import CustomLogTargetTransformer
 from tools.utils import (
     PERIODIC_TABLE_INFO,
@@ -19,12 +23,8 @@ from tools.utils import (
     get_structure_encoding,
 )
 
-ROOT_DIR = str(Path(__file__).parent.parent.parent.absolute())
-
 DELTA_E_MODELS_DIR = os.path.join(ROOT_DIR, "models/delta_E/")
-
 LOG_DELTA_E_MODELS_DIR = os.path.join(ROOT_DIR, "models/log_delta_E/")
-
 SIM_TIME_MODELS_DIR = os.path.join(ROOT_DIR, "models/sim_time/")
 
 DATA_PATH = os.path.join(ROOT_DIR, "data/data.csv")
@@ -59,7 +59,7 @@ def get_features_name(encoding):
         res += list(PERIODIC_TABLE_INFO.keys())
     elif encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         res += PTC_COLNAMES
-    return res
+    return res + ["total_atoms"]
 
 
 def sanitize_input(x):
@@ -87,6 +87,7 @@ def get_optimal_parameters(
     delta_E_model=None,
     sim_time_model=None,
     log_delta_E_model=None,
+    transformer=None,
     verbose=False,
 ):
     if log_delta_E_model is not None and delta_E_model is not None:
@@ -120,9 +121,8 @@ def get_optimal_parameters(
             )
 
     if log_delta_E_model is not None:
-        transformer = CustomLogTargetTransformer()
-        y = pd.read_csv(DATA_PATH, na_filter=False)["delta_E"]
-        transformer.fit(y)
+        if transformer is None:
+            raise ValueError("transformer must be provided")
 
         def delta_E_pred_func(x):
             return transformer.inverse_transform(
@@ -189,11 +189,29 @@ def get_feature_bounds(data_path):
 
 if __name__ == "__main__":
     console = Console()
+
+    encoding_delta_E = StructureEncoding.ATOMIC
+    encoding_sim_time = StructureEncoding.ATOMIC
+
     with console.status("Loading models..."):
+        delta_E_model, log_delta_E_model, sim_time_model = None, None, None
         log_delta_E_model, sim_time_model = load_models(
-            log_delta_E_model_name="random_forest_model.pkl",
-            sim_time_model_name="random_forest_model.pkl",
+            log_delta_E_model_name=f"{encoding_delta_E.value}/random_forest_model.pkl",
+            sim_time_model_name=f"{encoding_sim_time.value}/random_forest_model.pkl",
+            # log_delta_E_model_name=f"{encoding_delta_E.value}/xgboost_model.pkl",
+            # sim_time_model_name=f"{encoding_sim_time.value}/xgboost_model.pkl",
         )
+
+    transformer = None
+    if log_delta_E_model is not None:
+        transformer_path = os.path.join(
+            LOG_DELTA_E_MODELS_DIR,
+            f"{encoding_delta_E.value}/transformer.pkl",
+        )
+        with open(transformer_path, "rb") as file:
+            transformer = pickle.load(file)
+
+    feature_bounds = get_feature_bounds(DATA_PATH)
 
     structure_list = ["AgCl", "BaS"]
     max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
@@ -211,9 +229,10 @@ if __name__ == "__main__":
                 sim_time_model=sim_time_model,
                 structure_name=structure_name,
                 max_delta_E=max_delta_E,
-                encoding_delta_E=StructureEncoding.ATOMIC,
-                encoding_sim_time=StructureEncoding.ATOMIC,
-                feature_bounds=get_feature_bounds(DATA_PATH),
+                encoding_delta_E=encoding_delta_E,
+                encoding_sim_time=encoding_sim_time,
+                feature_bounds=feature_bounds,
+                transformer=transformer,
             )
             predictions.append(
                 {

@@ -17,7 +17,11 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_as_baseline, save_datasets, save_models
 from tools.train import train_models
@@ -30,21 +34,14 @@ from tools.utils import (
     percentile_absolute_percentage_error,
 )
 
-# Set Up
-DATA_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "data/"
-)
+# Define global variables
+DATA_DIR = os.path.join(ROOT_DIR, "data/")
 
 DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
-MODELS_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "models/log_delta_E/"
-)
+MODELS_DIR = os.path.join(ROOT_DIR, "models/log_delta_E/")
 
-BASELINES_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()),
-    "baselines/log_delta_E/",
-)
+BASELINES_DIR = os.path.join(ROOT_DIR, "baselines/log_delta_E/")
 
 
 def instantiate_models(console: Console):
@@ -229,8 +226,9 @@ if __name__ == "__main__":
     console = Console(record=True)
     prompt_user = False
 
-    # encoding = StructureEncoding.ATOMIC
-    for encoding in StructureEncoding:
+    encodings = [StructureEncoding.ATOMIC]
+    # encodings = list(StructureEncoding)
+    for encoding in encodings:
         console.log(f"[bold green] Started pipeline for {encoding}")
         target = Target.DELTA_E
         target_transformer = CustomLogTargetTransformer()
@@ -265,7 +263,14 @@ if __name__ == "__main__":
             ),
             "XGBoost - log": (models["XGBoost - log"], "xgboost_model.pkl"),
         }
-        save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
+        save_models(
+            models_to_save,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
+            transformer=target_transformer,
+        )
 
         save_datasets(
             X_train,

@@ -3,10 +3,15 @@ import pickle
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from rich.console import Console
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import StructureEncoding
 
 
@@ -33,13 +38,21 @@ def save_models(
     console: Console,
     models_dir,
     prompt_user=True,
+    transformer=None,
 ):
     if not prompt_user or input("Save models? (y/[n]) ") == "y":
         models_save_dir = os.path.join(models_dir, encoding.value)
         Path(models_save_dir).mkdir(parents=True, exist_ok=True)
         results_file = os.path.join(models_save_dir, "results.html")
         console.save_html(results_file)
-        console.print(f"Results stored in {results_file}")
+        console.log(f"Results stored in {results_file}")
+        if transformer is not None:
+            transformer_path = os.path.join(models_save_dir, "transformer.pkl")
+            with open(transformer_path, "wb") as file:
+                pickle.dump(transformer, file)
+                console.log(
+                    f"[green]Saved transformer to {transformer_path}[/green]"
+                )
         with console.status("[bold green]Saving models..."):
             for model_name, (model, filename) in models.items():
                 modelpath = os.path.join(models_save_dir, filename)

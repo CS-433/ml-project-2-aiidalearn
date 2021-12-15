@@ -10,7 +10,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
+)
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.save import save_as_baseline, save_datasets, save_models
 from tools.train import evaluate_models, print_test_samples, train_models
 from tools.utils import (
@@ -20,20 +24,13 @@ from tools.utils import (
 )
 
 # Define global variables
-DATA_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "data/"
-)
+DATA_DIR = os.path.join(ROOT_DIR, "data/")
 
-DATA_PATH = os.path.join(DATA_DIR, "ref_energy.csv")
+DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
-MODELS_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "models/ref_energy/"
-)
+MODELS_DIR = os.path.join(ROOT_DIR, "models/ref_energy/")
 
-BASELINES_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()),
-    "baselines/ref_energy/",
-)
+BASELINES_DIR = os.path.join(ROOT_DIR, "baselines/ref_energy/")
 
 
 def data_loader_ref_energy(
