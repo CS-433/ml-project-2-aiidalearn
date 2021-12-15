@@ -1,0 +1,112 @@
+[
+  {
+    "structure": "AgCl",
+    "max_delta_E": 0.1,
+    "params": {
+      "ecutrho": 190,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1014.1571099893262,
+    "delta_E_pred": 0.07600548007919938
+  },
+  {
+    "structure": "AgCl",
+    "max_delta_E": 0.01,
+    "params": {
+      "ecutrho": 221,
+      "k_density": 2,
+      "ecutwfc": 29
+    },
+    "sim_time_pred": 1020.2364817981891,
+    "delta_E_pred": -0.31155229115705013
+  },
+  {
+    "structure": "AgCl",
+    "max_delta_E": 0.001,
+    "params": {
+      "ecutrho": 221,
+      "k_density": 2,
+      "ecutwfc": 29
+    },
+    "sim_time_pred": 1020.2364817981891,
+    "delta_E_pred": -0.31155229115705013
+  },
+  {
+    "structure": "AgCl",
+    "max_delta_E": 0.0001,
+    "params": {
+      "ecutrho": 221,
+      "k_density": 2,
+      "ecutwfc": 29
+    },
+    "sim_time_pred": 1020.2364817981891,
+    "delta_E_pred": -0.31155229115705013
+  },
+  {
+    "structure": "AgCl",
+    "max_delta_E": 1e-05,
+    "params": {
+      "ecutrho": 221,
+      "k_density": 2,
+      "ecutwfc": 29
+    },
+    "sim_time_pred": 1020.2364817981891,
+    "delta_E_pred": -0.31155229115705013
+  },
+  {
+    "structure": "BaS",
+    "max_delta_E": 0.1,
+    "params": {
+      "ecutrho": 290,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1650.8885232940456,
+    "delta_E_pred": -0.4206322700144746
+  },
+  {
+    "structure": "BaS",
+    "max_delta_E": 0.01,
+    "params": {
+      "ecutrho": 290,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1650.8885232940456,
+    "delta_E_pred": -0.4206322700144746
+  },
+  {
+    "structure": "BaS",
+    "max_delta_E": 0.001,
+    "params": {
+      "ecutrho": 290,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1650.8885232940456,
+    "delta_E_pred": -0.4206322700144746
+  },
+  {
+    "structure": "BaS",
+    "max_delta_E": 0.0001,
+    "params": {
+      "ecutrho": 290,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1650.8885232940456,
+    "delta_E_pred": -0.4206322700144746
+  },
+  {
+    "structure": "BaS",
+    "max_delta_E": 1e-05,
+    "params": {
+      "ecutrho": 290,
+      "k_density": 3,
+      "ecutwfc": 26
+    },
+    "sim_time_pred": 1650.8885232940456,
+    "delta_E_pred": -0.4206322700144746
+  }
+]

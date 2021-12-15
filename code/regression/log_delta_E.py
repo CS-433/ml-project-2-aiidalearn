@@ -227,50 +227,52 @@ def print_test_samples_log(
 
 if __name__ == "__main__":
     console = Console(record=True)
-    prompt_user = True
+    prompt_user = False
 
-    encoding = StructureEncoding.ATOMIC
-    target = Target.DELTA_E
-    target_transformer = CustomLogTargetTransformer()
-    test_sets_cfg = [
-        TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
-        TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
-    ]
+    # encoding = StructureEncoding.ATOMIC
+    for encoding in StructureEncoding:
+        console.log(f"[bold green] Started pipeline for {encoding}")
+        target = Target.DELTA_E
+        target_transformer = CustomLogTargetTransformer()
+        test_sets_cfg = [
+            TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
+            TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
+        ]
 
-    # Data Loading
-    X_train, logy_train, test_sets = data_loader(
-        target=target,
-        encoding=encoding,
-        data_path=DATA_PATH,
-        test_sets_cfg=test_sets_cfg,
-        target_transformer=target_transformer,
-        console=console,
-        remove_ref_rows=True,
-    )
+        # Data Loading
+        X_train, logy_train, test_sets = data_loader(
+            target=target,
+            encoding=encoding,
+            data_path=DATA_PATH,
+            test_sets_cfg=test_sets_cfg,
+            target_transformer=target_transformer,
+            console=console,
+            remove_ref_rows=True,
+        )
 
-    models = instantiate_models(console)
-    train_models(models, X_train, logy_train, console)
-    evaluate_models_log(
-        models, X_train, logy_train, test_sets, target_transformer, console
-    )
-    print_test_samples_log(models, test_sets, target_transformer, console)
-    save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
+        models = instantiate_models(console)
+        train_models(models, X_train, logy_train, console)
+        evaluate_models_log(
+            models, X_train, logy_train, test_sets, target_transformer, console
+        )
+        print_test_samples_log(models, test_sets, target_transformer, console)
+        save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
 
-    models_to_save = {
-        "Random Forest - log": (
-            models["Random Forest - log"],
-            "random_forest_model.pkl",
-        ),
-        "XGBoost - log": (models["XGBoost - log"], "xgboost_model.pkl"),
-    }
-    save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
+        models_to_save = {
+            "Random Forest - log": (
+                models["Random Forest - log"],
+                "random_forest_model.pkl",
+            ),
+            "XGBoost - log": (models["XGBoost - log"], "xgboost_model.pkl"),
+        }
+        save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
-    save_datasets(
-        X_train,
-        logy_train,
-        test_sets,
-        encoding,
-        console,
-        MODELS_DIR,
-        prompt_user,
-    )
+        save_datasets(
+            X_train,
+            logy_train,
+            test_sets,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
+        )

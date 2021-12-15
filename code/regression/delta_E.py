@@ -123,37 +123,38 @@ def instantiate_models(console: Console):
 
 if __name__ == "__main__":
     console = Console(record=True)
-    prompt_user = True
+    prompt_user = False
+    for encoding in StructureEncoding:
+        console.log(f"[bold green]Started pipeline for {encoding}")
+    # encoding = StructureEncoding.ATOMIC
+        target = Target.DELTA_E
+        test_sets_cfg = [
+            TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
+            TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
+        ]
 
-    encoding = StructureEncoding.ATOMIC
-    target = Target.DELTA_E
-    test_sets_cfg = [
-        TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
-        TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
-    ]
+        # Data Loading
+        X_train, y_train, test_sets = data_loader(
+            target=target,
+            encoding=encoding,
+            data_path=DATA_PATH,
+            test_sets_cfg=test_sets_cfg,
+            console=console,
+            remove_ref_rows=True,
+        )
 
-    # Data Loading
-    X_train, y_train, test_sets = data_loader(
-        target=target,
-        encoding=encoding,
-        data_path=DATA_PATH,
-        test_sets_cfg=test_sets_cfg,
-        console=console,
-        remove_ref_rows=True,
-    )
+        models = instantiate_models(console)
+        train_models(models, X_train, y_train, console)
+        evaluate_models(models, X_train, y_train, test_sets, console)
+        print_test_samples(models, test_sets, console)
+        save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
 
-    models = instantiate_models(console)
-    train_models(models, X_train, y_train, console)
-    evaluate_models(models, X_train, y_train, test_sets, console)
-    print_test_samples(models, test_sets, console)
-    save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
+        models_to_save = {
+            "Random Forest": (models["Random Forest"], "random_forest_model.pkl"),
+            "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+        }
+        save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
-    models_to_save = {
-        "Random Forest": (models["Random Forest"], "random_forest_model.pkl"),
-        "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
-    }
-    save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
-
-    save_datasets(
-        X_train, y_train, test_sets, encoding, console, MODELS_DIR, prompt_user
-    )
+        save_datasets(
+            X_train, y_train, test_sets, encoding, console, MODELS_DIR, prompt_user
+        )
