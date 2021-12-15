@@ -104,3 +104,31 @@ def print_test_samples(models, test_sets, console: Console, n_sample=10):
         for i in range(n_sample):
             table.add_row(*[f"{r[i]:.3E}" for r in results],)
         console.print(table)
+
+def print_problematic_samples(models, test_sets, console: Console, elts, n_sample=10):
+    for elt in elts:
+        for test_name, X_test, y_test in test_sets:
+            table = Table(title=f"Test samples - {test_name}")
+            table.add_column("Real", justify="center", style="green")
+            for model_name, _ in models.items():
+                table.add_column(model_name, justify="center", style="yellow")
+
+            elt_mask = X_test[elt].to_numpy().nonzero()[0]
+            idx_sample = np.random.choice(
+                X_test.iloc[elt_mask].index, size=n_sample, replace=False
+            )
+            results = [
+                np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())
+            ]
+            for model_name, model in models.items():
+                results.append(
+                    np.array(
+                        model.predict(
+                            X_test.loc[X_test.index.intersection(idx_sample)]
+                        ).squeeze()
+                    )
+                )
+
+            for i in range(n_sample):
+                table.add_row(*[f"{r[i]:.3E}" for r in results],)
+            console.print(table)
