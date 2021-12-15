@@ -7,6 +7,7 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from natsort import natsorted
 
 
@@ -16,15 +17,17 @@ def load_json(filepath: str):
     return data
 
 
-class Encoding(Enum):
+class StructureEncoding(Enum):
     ATOMIC = "atomic"
     COLUMN = "column"
     COLUMN_MASS = "column_mass"
+    VALENCE_CONFIG = "valence_configuration"
+
 
 class Target(Enum):
-    SIM_TIME = "sim_time"
+    SIM_TIME = "time"
     DELTA_E = "delta_E"
-    LOG_DELTA_E = "log_delta_E"
+    CONVERGED = "converged"
 
 
 PERIODIC_TABLE_INFO = load_json(
@@ -50,83 +53,114 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
     return dict(elements_nbrs)
 
 
-def encode_structure(
-    df: pd.DataFrame, elements_nbrs: Dict[str, int], encoding: Encoding,
-):
+def get_structure_encoding(structure_name, encoding) -> np.ndarray:
+    periodic_elt_list = list(PERIODIC_TABLE_INFO.keys())
+    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
+        res = np.zeros(len(PTC_COLNAMES) + 1)
+    elif encoding == StructureEncoding.ATOMIC:
+        res = np.zeros(len(periodic_elt_list) + 1)
+
+    elements_nbrs = extract_structure_elements(structure_name)
     total_atoms = sum(list(elements_nbrs.values()))
     total_mass = 0.0
     for elt, nb_elt in elements_nbrs.items():
         elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
         total_mass += nb_elt * elt_mass
 
-    if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
-        for colname in PTC_COLNAMES:
-            df = df.assign(**{colname: 0.0})
-    elif encoding == Encoding.ATOMIC:
-        for element in PERIODIC_TABLE_INFO:
-            df = df.assign(**{element: 0.0})
-
     for elt, nb_elt in elements_nbrs.items():
-        if encoding == Encoding.COLUMN:
+        if encoding == StructureEncoding.COLUMN:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
             ptc = ELEMENT_INFO["PTC"]
-            print("-----Col encoding-----")
-            print(elt, " -> ", ptc)
-            df[ptc] = nb_elt / total_atoms
-            print("--------------------")
-        elif encoding == Encoding.COLUMN_MASS:
+            res[PTC_COLNAMES.index(ptc)] += nb_elt / total_atoms
+        elif encoding == StructureEncoding.COLUMN_MASS:
             ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
             ptc = ELEMENT_INFO["PTC"]
             elt_mass = ELEMENT_INFO["mass"]
-            print("--Col mass encoding---")
-            print(elt, " -> ", ptc)
-            print(f"Mass of {elt}: {elt_mass:.3f}")
-            df[ptc] += nb_elt * elt_mass / total_mass
-            print("----------------------")
-        elif encoding == Encoding.ATOMIC:
-            df = df.assign(**{elt: nb_elt / total_atoms})
+            res[PTC_COLNAMES.index(ptc)] += nb_elt * elt_mass / total_mass
+        elif encoding == StructureEncoding.ATOMIC:
+            res[periodic_elt_list.index(elt)] += nb_elt / total_atoms
+        elif encoding == StructureEncoding.VALENCE_CONFIG:
+            ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+            valence_band_str = ELEMENT_INFO["valence_band"]
+            valence_band = parse_valence_band(valence_band_str)
+            blocks = ["s", "p", "d", "f"]
+            for idx_block, block in enumerate(blocks):
+                res[idx_block] += (
+                    valence_band[block] / valence_band["outermost"]
+                )
+    res[-1] = total_atoms
 
-    return df
+    return res
 
 
 def encode_all_structures(
-    df: pd.DataFrame, encoding: Encoding,
+    df: pd.DataFrame, encoding: StructureEncoding,
 ):
-    if encoding in [Encoding.COLUMN, Encoding.COLUMN_MASS]:
+    if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
-    elif encoding == Encoding.ATOMIC:
+    elif encoding == StructureEncoding.ATOMIC:
         for element in PERIODIC_TABLE_INFO:
             df = df.assign(**{element: 0.0})
+
+    elif encoding == StructureEncoding.VALENCE_CONFIG:
+        blocks = ["s", "p", "d", "f"]
+        for block in blocks:
+            df = df.assign(**{block: 0.0})
+
+    df = df.assign(**{"total_atoms": 0.0})
 
     for structure_name in df["structure"].unique():
         elements_nbrs = extract_structure_elements(structure_name)
         total_atoms = sum(list(elements_nbrs.values()))
+        df.loc[df["structure"] == structure_name, "total_atoms"] += total_atoms
         total_mass = 0.0
         for elt, nb_elt in elements_nbrs.items():
             elt_mass = PERIODIC_TABLE_INFO[elt]["mass"]
             total_mass += nb_elt * elt_mass
 
         for elt, nb_elt in elements_nbrs.items():
-            if encoding == Encoding.COLUMN:
+            if encoding == StructureEncoding.COLUMN:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
-                df.loc[df["structure"] == structure_name, ptc] = (
+                df.loc[df["structure"] == structure_name, ptc] += (
                     nb_elt / total_atoms
                 )
-            elif encoding == Encoding.COLUMN_MASS:
+            elif encoding == StructureEncoding.COLUMN_MASS:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 elt_mass = ELEMENT_INFO["mass"]
-                df.loc[df["structure"] == structure_name, ptc] = (
+                df.loc[df["structure"] == structure_name, ptc] += (
                     nb_elt * elt_mass / total_mass
                 )
-            elif encoding == Encoding.ATOMIC:
+            elif encoding == StructureEncoding.ATOMIC:
                 df.loc[df["structure"] == structure_name, elt] = (
                     nb_elt / total_atoms
                 )
+            elif encoding == StructureEncoding.VALENCE_CONFIG:
+                ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
+                valence_band_str = ELEMENT_INFO["valence_band"]
+                valence_band = parse_valence_band(valence_band_str)
+                blocks = ["s", "p", "d", "f"]
+                for block in blocks:
+                    df.loc[df["structure"] == structure_name, block] += (
+                        valence_band[block] / valence_band["outermost"]
+                    )
 
     return df
+
+
+def parse_valence_band(valence_band_str):
+    orbitals = valence_band_str.split("-")
+    valence_band = {"s": 0.0, "p": 0.0, "d": 0.0, "f": 0.0, "outermost": 0.0}
+    for orbital_str in orbitals:
+        key = orbital_str[1]
+        value = int(orbital_str.split("^")[-1])
+        valence_band[key] += value
+
+    outermost_orbital = orbitals[-1]
+    valence_band["outermost"] = int(outermost_orbital[0])
+    return valence_band
 
 
 def custom_mape(y_true, y_pred, shift=False):
@@ -145,16 +179,20 @@ def custom_mape(y_true, y_pred, shift=False):
     )
 
 
-class LogTransform:
-    def __init__(self, y):
-        self.miny = float(np.min(y))
-        miny2 = sorted(set(np.array(y.squeeze())))[1]
-        self.eps = (miny2 - self.miny) / 10
-        self.bias = 0
-        self.bias = np.max(self.transform(y)) + 1
+def absolute_percentage_error(y_true, y_pred):
+    epsilon = np.finfo(np.float64).eps
+    return np.abs(y_pred - y_true) / np.maximum(np.abs(y_true), epsilon)
 
-    def transform(self, y):
-        return np.log(y - self.miny + self.eps) - self.bias
 
-    def inverse_transform(self, logy):
-        return np.exp(logy + self.bias) + self.miny - self.eps
+def percentile_absolute_percentage_error(y_true, y_pred, percentile=50):
+    ape = absolute_percentage_error(y_true, y_pred)
+    return np.percentile(ape, percentile)
+
+
+def check_xgboost_gpu():
+    try:
+        xgb_model = xgb.XGBRegressor(tree_method="gpu_hist")
+        xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
+        return True
+    except:
+        return False

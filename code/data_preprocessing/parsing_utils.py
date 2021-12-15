@@ -23,6 +23,7 @@ DATA_DIR = os.path.join(
     str(Path(__file__).parent.parent.parent.absolute()), "data/"
 )
 DATA_CSV = os.path.join(DATA_DIR, "data.csv")
+REF_ENERGY_CSV = os.path.join(DATA_DIR, "ref_energy.csv")
 
 
 def compute_delta_E(df: pd.DataFrame):
@@ -77,9 +78,7 @@ def check_parsing(data_dir: str, savepath: str) -> bool:
     if len(structures_ill_parsed) != 0:
         console.print(
             Panel(
-                "\n".join(
-                    str(elt) + str(type(elt)) for elt in structures_ill_parsed
-                ),
+                "\n".join(str(elt) for elt in structures_ill_parsed),
                 title="Structures not parsed correctly",
                 expand=False,
                 style="bold red",
@@ -96,7 +95,10 @@ def print_data_summary(df: pd.DataFrame = None):
     # print a summary on the collected data
     console = Console()
     if df is None:
-        df = pd.read_csv(DATA_CSV)
+        if not os.path.exists(DATA_CSV):
+            console.print("No data collected yet")
+            return
+        df = pd.read_csv(DATA_CSV, na_filter=False)
     console.print(
         Panel(
             "[blue]"
@@ -111,9 +113,13 @@ def print_data_summary(df: pd.DataFrame = None):
 
 
 def parse_all_data_json(
-    data_dir: str, savepath: str, inv_k_density: bool = False,
+    data_dir: str,
+    data_savepath: str,
+    ref_energy_savepath: str,
+    inv_k_density: bool = False,
 ) -> pd.DataFrame:
     list_df = []
+    ref_energy_list = []
     p = Path(data_dir)
     nb_folders = len(os.listdir(data_dir))
     console = Console()
@@ -130,6 +136,10 @@ def parse_all_data_json(
 
             df = pd.DataFrame(load_json(file))
             df, ref_energy = compute_delta_E(df)
+
+            ref_energy_list.append(
+                {"structure": structure_name, "total_energy": ref_energy}
+            )
 
             if inv_k_density:
                 df["k_density"] = df["k_density"].apply(
@@ -151,20 +161,28 @@ def parse_all_data_json(
             )
 
     res = pd.concat(list_df, ignore_index=True)
+    ref_energy_df = pd.DataFrame(ref_energy_list)
 
     with console.status("") as status:
-        # save the data
-        status.update(f"Saving parsed data to {savepath}...")
-        res.to_csv(savepath)
-        console.log(f"Data stored in {savepath}")
+        status.update(
+            f"Saving reference energy data to {ref_energy_savepath}..."
+        )
+        ref_energy_df.to_csv(ref_energy_savepath, index=False)
+        console.log(f"Data stored in {ref_energy_savepath}")
+        status.update(f"Saving parsed data to {data_savepath}...")
+        res.to_csv(data_savepath)
+        console.log(f"Data stored in {data_savepath}")
 
     return res
 
 
 if __name__ == "__main__":
+    print_data_summary()
     if not (
         check_parsing(DATA_DIR, DATA_CSV)
         and input("Reparse data? (y/[n]) ") != "y"
     ):
-        df = parse_all_data_json(DATA_DIR, DATA_CSV, inv_k_density=True)
+        df = parse_all_data_json(
+            DATA_DIR, DATA_CSV, REF_ENERGY_CSV, inv_k_density=True
+        )
         print_data_summary(df)

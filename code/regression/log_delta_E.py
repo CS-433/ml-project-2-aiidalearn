@@ -1,5 +1,4 @@
 import os
-import pickle
 import sys
 from pathlib import Path
 
@@ -18,159 +17,267 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))
-from tools.data_loader import data_loader
-from tools.utils import Encoding, Target, custom_mape
-
-# Set Up
-DATA_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "data/"
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
 )
+
+sys.path.append(os.path.join(ROOT_DIR, "code"))
+from tools.data_loader import TestSet, TestSplit, data_loader
+from tools.save import save_as_baseline, save_datasets, save_models
+from tools.train import train_models
+from tools.transform import CustomLogTargetTransformer
+from tools.utils import (
+    StructureEncoding,
+    Target,
+    check_xgboost_gpu,
+    custom_mape,
+    percentile_absolute_percentage_error,
+)
+
+# Define global variables
+DATA_DIR = os.path.join(ROOT_DIR, "data/")
 
 DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
-MODELS_DIR = os.path.join(
-    str(Path(__file__).parent.parent.parent.absolute()), "models/log_delta_E/"
-)
+MODELS_DIR = os.path.join(ROOT_DIR, "models/log_delta_E/")
 
-encoding = Encoding.COLUMN_MASS
-target = Target.LOG_DELTA_E
-console = Console(record=True)
+BASELINES_DIR = os.path.join(ROOT_DIR, "baselines/log_delta_E/")
 
-# Data Loading
-X_train, X_test, logy_train, logy_test = data_loader(
-    target=target,
-    encoding=encoding,
-    data_path=DATA_PATH,
-    test_size=0.2,
-    generalization=False,
-)
 
-# Model Definitions
-linear_log_augmented_model = Pipeline(
-    [
-        ("scaler_init", StandardScaler()),
-        ("features", PolynomialFeatures(degree=2)),
-        ("scaler_final", StandardScaler()),
-        ("regressor", LinearRegression()),
-    ]
-)
+def instantiate_models(console: Console):
+    with console.status("") as status:
+        status.update("[bold blue]Initializing models...")
 
-rf_log_model = RandomForestRegressor(random_state=0)
-
-xgb_log_model = xgb.XGBRegressor(
-    max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
-)
-
-# detect if gpu is usable with xgboost by training on toy data
-try:
-    xgb_log_model.set_params(tree_method="gpu_hist")
-    xgb_log_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))
-    console.print("[italic bright_black]Using GPU for XGBoost")
-except:
-    xgb_log_model.set_params(tree_method="hist")
-    console.print("[italic bright_black]Using CPU for XGBoost")
-
-models_log = {
-    "Dummy - log": DummyRegressor(),
-    "Linear - log": LinearRegression(),
-    "Augmented Linear - log": linear_log_augmented_model,
-    "Random Forest - log": rf_log_model,
-    "XGBoost - log": xgb_log_model,
-}
-
-# Model training
-with console.status("") as status:
-    for model_name, model in models_log.items():
-        status.update(f"[bold blue]Training {model_name}...")
-        model.fit(X_train, logy_train)
-        console.log(f"[blue]Finished training {model_name}[/blue]")
-
-# Model evaluation
-with console.status("") as status:
-    for model_name, model in models_log.items():
-        status.update(f"[bold blue]Evaluating {model_name}...")
-
-        table = Table(title=model_name)
-        table.add_column("Loss name", justify="center", style="cyan")
-        table.add_column("Train", justify="center", style="green")
-        table.add_column("Test", justify="center", style="green")
-
-        # first we evaluate the log-transformed prediction
-        logy_pred_train = model.predict(X_train)
-        logy_pred_test = model.predict(X_test)
-
-        for loss_name, loss_fn in [
-            ("MSE - log", mean_squared_error),
-            ("MAE - log", mean_absolute_error),
-            ("MAPE - log", mean_absolute_percentage_error),
-            ("Custom MAPE - log", custom_mape),
-        ]:
-            train_loss = loss_fn(logy_train, logy_pred_train)
-            test_loss = loss_fn(logy_test, logy_pred_test)
-            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
-
-        # then we transform the predictions back and evaluate
-        y_pred_train = log_transform.inverse_transform(
-            logy_pred_train.squeeze()
+        linear_log_augmented_model = Pipeline(
+            [
+                ("scaler_init", StandardScaler()),
+                ("features", PolynomialFeatures(degree=2)),
+                ("scaler_final", StandardScaler()),
+                ("regressor", LinearRegression()),
+            ]
         )
-        y_pred_test = log_transform.inverse_transform(logy_pred_test.squeeze())
 
-        y_train = log_transform.inverse_transform(logy_train.squeeze())
-        y_test = log_transform.inverse_transform(logy_test.squeeze())
+        rf_log_model = RandomForestRegressor(random_state=0)
 
-        for loss_name, loss_fn in [
-            ("MSE", mean_squared_error),
-            ("MAE", mean_absolute_error),
-            ("MAPE", mean_absolute_percentage_error),
-            ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
-        ]:
-            train_loss = loss_fn(y_train, y_pred_train)
-            test_loss = loss_fn(y_test, y_pred_test)
-            table.add_row(loss_name, f"{train_loss:.4E}", f"{test_loss:.4E}")
+        xgb_log_model = xgb.XGBRegressor(
+            max_depth=7, n_estimators=400, learning_rate=1.0, random_state=0
+        )
 
+        status.update("[bold blue]Checking GPU usability for XGBoost...")
+        if check_xgboost_gpu():
+            xgb_log_model.set_params(tree_method="gpu_hist")
+            console.print("[italic bright_black]Using GPU for XGBoost")
+        else:
+            console.print("[italic bright_black]Using CPU for XGBoost")
+
+        return {
+            "Dummy - log": DummyRegressor(),
+            "Linear - log": LinearRegression(),
+            # "Augmented Linear - log": linear_log_augmented_model,
+            "Random Forest - log": rf_log_model,
+            "XGBoost - log": xgb_log_model,
+        }
+
+
+def evaluate_models_log(
+    models,
+    X_train,
+    logy_train,
+    test_sets,
+    target_transformer,
+    console: Console,
+):
+    with console.status("") as status:
+        for model_name, model in models.items():
+            status.update(f"[bold blue]Evaluating {model_name}...")
+
+            table = Table(title=model_name)
+            table.add_column("Loss name", justify="center", style="cyan")
+            table.add_column("Train", justify="center", style="green")
+            for name, _, _ in test_sets:
+                table.add_column(
+                    f"Test - {name}", justify="center", style="green"
+                )
+
+            # first we evaluate the log-transformed prediction
+            logy_pred_train = model.predict(X_train)
+            logy_pred_tests = [
+                model.predict(X_test) for _, X_test, _ in test_sets
+            ]
+
+            for loss_name, loss_fn in [
+                ("MSE - log", mean_squared_error),
+                ("MAE - log", mean_absolute_error),
+                ("MAPE - log", mean_absolute_percentage_error),
+                ("Custom MAPE - log", custom_mape),
+                (
+                    "50%-APE - log",
+                    lambda a, b: percentile_absolute_percentage_error(
+                        a, b, 50
+                    ),
+                ),
+                (
+                    "90%-APE - log",
+                    lambda a, b: percentile_absolute_percentage_error(
+                        a, b, 90
+                    ),
+                ),
+            ]:
+                train_loss = loss_fn(logy_train, logy_pred_train)
+                test_losses = [
+                    loss_fn(logy_test, logy_pred_test)
+                    for (_, _, logy_test), logy_pred_test in zip(
+                        test_sets, logy_pred_tests
+                    )
+                ]
+                table.add_row(
+                    loss_name,
+                    f"{train_loss:.4E}",
+                    *[f"{test_loss:.4E}" for test_loss in test_losses],
+                )
+
+            # then we transform the predictions back and evaluate
+            y_pred_train = target_transformer.inverse_transform(
+                logy_pred_train.squeeze()
+            )
+            y_pred_tests = [
+                target_transformer.inverse_transform(logy_pred_test.squeeze())
+                for logy_pred_test in logy_pred_tests
+            ]
+
+            y_train = target_transformer.inverse_transform(
+                logy_train.squeeze()
+            )
+            y_tests = [
+                target_transformer.inverse_transform(logy_test.squeeze())
+                for _, _, logy_test in test_sets
+            ]
+
+            for loss_name, loss_fn in [
+                ("MSE", mean_squared_error),
+                ("MAE", mean_absolute_error),
+                ("MAPE", mean_absolute_percentage_error),
+                ("Custom MAPE", lambda a, b: custom_mape(a, b, True)),
+                (
+                    "50%-APE",
+                    lambda a, b: percentile_absolute_percentage_error(
+                        a, b, 50
+                    ),
+                ),
+                (
+                    "90%-APE",
+                    lambda a, b: percentile_absolute_percentage_error(
+                        a, b, 90
+                    ),
+                ),
+            ]:
+                train_loss = loss_fn(y_train, y_pred_train)
+                test_losses = [
+                    loss_fn(y_test, y_pred_test)
+                    for y_test, y_pred_test in zip(y_tests, y_pred_tests)
+                ]
+                table.add_row(
+                    loss_name,
+                    f"{train_loss:.4E}",
+                    *[f"{test_loss:.4E}" for test_loss in test_losses],
+                )
+
+            console.print(table)
+
+
+def print_test_samples_log(
+    models, test_sets, target_transformer, console: Console, n_sample=10
+):
+    for test_name, X_test, logy_test in test_sets:
+        table = Table(title=f"Test samples - {test_name}")
+        table.add_column("Real", justify="center", style="green")
+        for model_name, _ in models.items():
+            table.add_column(model_name, justify="center", style="yellow")
+
+        idx_sample = np.random.choice(
+            X_test.index, size=n_sample, replace=False
+        )
+        results = [
+            np.array(
+                target_transformer.inverse_transform(
+                    logy_test[
+                        logy_test.index.intersection(idx_sample)
+                    ].squeeze()
+                )
+            )
+        ]
+        for model_name, model in models.items():
+            results.append(
+                target_transformer.inverse_transform(
+                    np.array(
+                        model.predict(
+                            X_test.loc[X_test.index.intersection(idx_sample)]
+                        ).squeeze()
+                    )
+                )
+            )
+
+        for i in range(n_sample):
+            table.add_row(*[f"{r[i]:.3E}" for r in results],)
         console.print(table)
 
-# print some samples
-n_sample = 10
 
-table = Table(title="Test samples")
-table.add_column("Real", justify="center", style="green")
-for model_name, _ in models_log.items():
-    table.add_column(model_name, justify="center", style="yellow")
+if __name__ == "__main__":
+    console = Console(record=True)
+    prompt_user = False
 
-idx_sample = np.random.choice(X_test.index, size=n_sample, replace=False)
-results = [np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())]
-for model_name, model in models_log.items():
-    results.append(
-        log_transform.inverse_transform(
-            np.array(
-                model.predict(
-                    X_test.loc[X_test.index.intersection(idx_sample)]
-                ).squeeze()
-            )
+    encodings = [StructureEncoding.ATOMIC]
+    # encodings = list(StructureEncoding)
+    for encoding in encodings:
+        console.log(f"[bold green] Started pipeline for {encoding}")
+        target = Target.DELTA_E
+        target_transformer = CustomLogTargetTransformer()
+        test_sets_cfg = [
+            TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
+            TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
+        ]
+
+        # Data Loading
+        X_train, logy_train, test_sets = data_loader(
+            target=target,
+            encoding=encoding,
+            data_path=DATA_PATH,
+            test_sets_cfg=test_sets_cfg,
+            target_transformer=target_transformer,
+            console=console,
+            remove_ref_rows=True,
         )
-    )
 
-for i in range(n_sample):
-    table.add_row(*[f"{r[i]:.3E}" for r in results],)
-console.print(table)
+        models = instantiate_models(console)
+        train_models(models, X_train, logy_train, console)
+        evaluate_models_log(
+            models, X_train, logy_train, test_sets, target_transformer, console
+        )
+        print_test_samples_log(models, test_sets, target_transformer, console)
+        save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
 
-# save results
-if input("Save models? (y/[n]) ") == "y":
-    save_models = {
-        "Random Forest - log": (rf_log_model, "random_forest_model.pkl"),
-        # "Gradient Boosting - log": (gb_log_model, "gb_model.pkl"),
-        "XGBoost - log": (xgb_log_model, "xgb_model.pkl"),
-    }
+        models_to_save = {
+            "Random Forest - log": (
+                models["Random Forest - log"],
+                "random_forest_model.pkl",
+            ),
+            "XGBoost - log": (models["XGBoost - log"], "xgboost_model.pkl"),
+        }
+        save_models(
+            models_to_save,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
+            transformer=target_transformer,
+        )
 
-    Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
-    results_file = os.path.join(MODELS_DIR, "results.html")
-    console.save_html(results_file)
-    console.print(f"Results stored in {results_file}")
-    with console.status("[bold green]Saving models...") as status:
-        for model_name, (model, filename) in save_models.items():
-            modelpath = MODELS_DIR + filename
-            with open(modelpath, "wb") as file:
-                pickle.dump(model, file)
-            console.log(f"[green]Saved {model_name} to {modelpath}[/green]")
+        save_datasets(
+            X_train,
+            logy_train,
+            test_sets,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
+        )
