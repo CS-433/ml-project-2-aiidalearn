@@ -42,7 +42,7 @@ function generate_jobs(cif_file, data_file, server, root, ecutwfcs, ecutrhos, kp
 
     #open data.json file and load in memory all the json dict
     datadict = JSON3.parse(data_file, Vector{Dict})
-    sums = map(x -> 10 * x["ecutwfc"] + 100 * x["ecutrho"] + 1000 * round(Int, 1/x["kdensity"], datadict)
+    sums = map(x -> 10 * x["ecutwfc"] + 100 * x["ecutrho"] + 1000 * round(Int, 1/x["kdensity"], datadict))
 
     calc_template = Calculation{QE}(name = "scf",
                                     exec = Exec(exec    = "pw.x",
