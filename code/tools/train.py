@@ -9,6 +9,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_error,
+    accuracy_score
 )
 
 ROOT_DIR = os.path.dirname(
@@ -17,6 +18,8 @@ ROOT_DIR = os.path.dirname(
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import custom_mape, percentile_absolute_percentage_error
+from tools.transform import magnitude_transform
+
 
 
 def train_models(models, X_train, y_train, console: Console):
@@ -75,6 +78,60 @@ def evaluate_models(models, X_train, y_train, test_sets, console: Console):
                     f"{train_loss:.4E}",
                     *[f"{test_loss:.4E}" for test_loss in test_losses],
                 )
+
+            console.print(table)
+
+def train_classifiers(models, X_train, y_train, console: Console):
+    with console.status("") as status:
+        for model_name, model in models.items():
+            status.update(f"[bold blue]Training {model_name}...")
+            magnitude_y_train = magnitude_transform(y_train)
+            model.fit(X_train, magnitude_y_train)
+            console.log(f"[blue]Finished training {model_name}[/blue]")
+
+
+def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
+    with console.status("") as status:
+        for model_name, model in models.items():
+            status.update(f"[bold blue]Evaluating {model_name}...")
+
+            table = Table(title=model_name)
+            table.add_column("Loss name", justify="center", style="cyan")
+            table.add_column("Train", justify="center", style="green")
+            for name, _, _ in test_sets:
+                table.add_column(
+                    f"Test - {name}", justify="center", style="green"
+                )
+
+            y_pred_train = model.predict(X_train)
+            y_pred_tests = [
+                model.predict(X_test) for _, X_test, _ in test_sets
+            ]
+
+
+            for loss_name, loss_fn in [
+                ("Accuracy", accuracy_score),
+            ]:
+                train_loss = loss_fn(magnitude_transform(y_train), y_pred_train)
+                test_losses = [
+                    loss_fn(magnitude_transform(y_test), y_pred_test)
+                    for (_, _, y_test), y_pred_test in zip(
+                        test_sets, y_pred_tests
+                    )
+                ]
+
+                if loss_name == "Accuracy":
+                    table.add_row(
+                        loss_name,
+                        f"{100*train_loss:.2f}%",
+                        *[f"{100*test_loss:.2f}%" for test_loss in test_losses],
+                    )
+                else:
+                    table.add_row(
+                        loss_name,
+                        f"{train_loss:.4E}",
+                        *[f"{test_loss:.4E}" for test_loss in test_losses],
+                    )
 
             console.print(table)
 

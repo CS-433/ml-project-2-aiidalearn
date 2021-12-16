@@ -27,6 +27,7 @@ class StructureEncoding(Enum):
 class Target(Enum):
     SIM_TIME = "time"
     DELTA_E = "delta_E"
+    DELTA_E_MAGNITUDE = "delta_E_magnitude"
     CONVERGED = "converged"
 
 
