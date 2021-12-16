@@ -3,8 +3,6 @@ using DrWatson
 using HTTP
 using JSON3
 using DFControl
-using JSON
-using DataFrames
 
 function pull_generate_jobs(nelements, nsites, api_key, server, root, args...)
     d = Dict("criteria"   => Dict("nelements" => nelements, "nsites" => nsites),
@@ -22,7 +20,9 @@ function pull_generate_jobs(nelements, nsites, api_key, server, root, args...)
     valid_atsyms = keys(DFControl.Client.list_pseudoset(server, "sssp_efficiency"))
     
     for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[1:600]
-        sysname = sys["pretty_formula"]
+        sysname_old = sys["pretty_formula"]
+        arr = [i > 1 && uppercase(c) == c  ? "1"*c  : c  for (i, c) in enumerate(sysname_old)]
+        sysname = string(join(arr), "1")
         sysdir  = datadir(sysname)
         @info "Creating run for $sysname."
         mkpath(sysdir)
@@ -41,8 +41,9 @@ function generate_jobs(cif_file, data_file, server, root, ecutwfcs, ecutrhos, kp
     str = Structures.cif2structure(cif_file)
 
     #open data.json file and load in memory all the json dict
-    datadict = JSON3.parse(data_file, Vector{Dict})
-    sums = map(x -> 10 * x["ecutwfc"] + 100 * x["ecutrho"] + 1000 * round(Int, 1/x["kdensity"], datadict))
+    data_string = read(data_file, String)
+    datadict = JSON3.read(data_string, Vector{Dict})
+    sums = map(x -> 10 * x["ecutwfc"] + 100 * x["ecutrho"] + 1000 * round(Int, 1/x["k_density"]), datadict)
 
     calc_template = Calculation{QE}(name = "scf",
                                     exec = Exec(exec    = "pw.x",
