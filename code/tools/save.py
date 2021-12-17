@@ -12,7 +12,7 @@ ROOT_DIR = os.path.dirname(
 )
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
-from tools.utils import StructureEncoding
+from tools.utils import StructureEncoding, Target
 
 
 def save_as_baseline(
@@ -84,6 +84,19 @@ def save_datasets(
                 console.log(
                     f"[green]Saved {name} to {datasets_save_dir}[/green]"
                 )
+
+def save_params(
+    encoding: StructureEncoding,
+    target: Target,
+    console: Console,
+    params_dir,
+):
+
+    Path(params_dir).mkdir(parents=True, exist_ok=True)
+    filename = f"params_{target.value}_{encoding.value}.html"
+    params_file = os.path.join(params_dir, filename)
+    console.save_html(params_file)
+    console.log(f"[green]Parameters stored in {params_file}")
 
 
 def load_saved_datasets(
