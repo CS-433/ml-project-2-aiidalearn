@@ -93,7 +93,7 @@ if __name__ == "__main__":
     encodings = [StructureEncoding.ATOMIC]
     # encodings = list(StructureEncoding)
     for encoding in encodings:
-        console.log(f"[bold green] Started pipeline for {encoding}")
+        console.log(f"[bold green] Started training pipeline for {encoding}")
         target = Target.SIM_TIME
         test_sets_cfg = [
             TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
