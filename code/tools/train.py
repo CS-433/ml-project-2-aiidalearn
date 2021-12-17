@@ -12,6 +12,8 @@ from sklearn.metrics import (
     accuracy_score
 )
 
+from sklearn.model_selection import cross_validate, KFold
+
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
 )
@@ -135,6 +137,35 @@ def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
 
             console.print(table)
 
+def cv_classifiers(models, X_train, y_train, console: Console, ncv=5, shuffle=False):
+    if shuffle:
+        table = Table(title=f"Cross Validation {ncv}-fold with shuffle")
+    else:
+        table = Table(title=f"Cross Validation {ncv}-fold without shuffle")
+
+    table.add_column("Model", justify="center", style="white")
+    table.add_column("Train mean", justify="center", style="white")
+    table.add_column("Train std", justify="center", style="white")
+    table.add_column("Test mean", justify="center", style="white")
+    table.add_column("Test std", justify="center", style="white")
+
+
+    with console.status("") as status:
+        for model_name, model in models.items():
+            status.update(f"[bold blue]Cross validating {model_name}...")
+            cv_iterators = KFold(n_splits=ncv, shuffle=shuffle, random_state=42)
+            cv_res = cross_validate(model, X_train, magnitude_transform(y_train), cv=cv_iterators, return_train_score=True)
+            train_scores = cv_res['train_score']
+            test_scores = cv_res['test_score']
+            table.add_row(*[
+                f"{model_name}",
+                f"{100*np.mean(train_scores):.2f}%",
+                f"{np.std(train_scores):.6f}",
+                f"{100*np.mean(test_scores):.2f}%",
+                f"{np.std(test_scores):.6f}"
+            ])
+
+    console.print(table)
 
 def print_test_samples(models, test_sets, console: Console, n_sample=10):
     for test_name, X_test, y_test in test_sets:
