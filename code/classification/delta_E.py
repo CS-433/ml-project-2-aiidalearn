@@ -6,6 +6,7 @@ import numpy as np
 import xgboost as xgb
 from rich.console import Console
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.dummy import DummyClassifier
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
@@ -16,7 +17,7 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_as_baseline, save_datasets, save_models
-from tools.train import evaluate_classifiers, print_test_samples, train_classifiers, print_problematic_samples
+from tools.train import evaluate_classifiers, print_test_samples, train_classifiers, print_problematic_samples, cv_classifiers
 from tools.utils import StructureEncoding, Target, check_xgboost_gpu
 
 # Define global variables
@@ -39,9 +40,14 @@ def instantiate_models(console: Console):
     with console.status("") as status:
         status.update("[bold blue]Initializing models...")
 
-        rf_model = RandomForestClassifier(random_state=0)
+        dummy_model = DummyClassifier()
+
+        rf_params = {'n_estimators': 218, 'max_features': 'sqrt', 'max_depth': 205, 'random_state' : 0}
+        rf_model = RandomForestClassifier(**rf_params)
+        console.log(f"[green] Initialized {rf_model}")
 
         xgb_model = xgb.XGBClassifier(random_state=0)
+        console.log(f"[green] Initialized {xgb_model}")
 
         status.update("[bold blue]Checking GPU usability for XGBoost...")
         if check_xgboost_gpu():
@@ -51,6 +57,7 @@ def instantiate_models(console: Console):
             console.print("[italic bright_black]Using CPU for XGBoost")
 
         return {
+            # "Dummy" : dummy_model
             "Random Forest": rf_model,
              "XGBoost": xgb_model,
         }
@@ -59,10 +66,10 @@ if __name__ == "__main__":
     console = Console(record=True)
     prompt_user = False
 
-    # encodings = [StructureEncoding.ATOMIC]
-    encodings = list(StructureEncoding)
+    encodings = [StructureEncoding.ATOMIC]
+    # encodings = list(StructureEncoding)
     for encoding in encodings:
-        console.log(f"[bold green]Started pipeline for {encoding}")
+        console.log(f"[bold green]Started training pipeline for {encoding.value} encoding")
         target = Target.DELTA_E
         test_sets_cfg = [
             TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
@@ -81,24 +88,28 @@ if __name__ == "__main__":
         models = instantiate_models(console)
         train_classifiers(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
+        cv_classifiers(models, X_train, y_train, console, shuffle=False)
+        # cv_classifiers(models, X_train, y_train, console, shuffle=True)
+
+
         print_test_samples(models, test_sets, console)
         save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
+        #
+        # models_to_save = {
+        #     "Random Forest": (
+        #         models["Random Forest"],
+        #         "random_forest_model.pkl",
+        #     ),
+        #     "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+        # }
+        # save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
-        models_to_save = {
-            "Random Forest": (
-                models["Random Forest"],
-                "random_forest_model.pkl",
-            ),
-            "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
-        }
-        save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
-
-        save_datasets(
-            X_train,
-            y_train,
-            test_sets,
-            encoding,
-            console,
-            MODELS_DIR,
-            prompt_user,
-        )
+        # save_datasets(
+        #     X_train,
+        #     y_train,
+        #     test_sets,
+        #     encoding,
+        #     console,
+        #     MODELS_DIR,
+        #     prompt_user,
+        # )
