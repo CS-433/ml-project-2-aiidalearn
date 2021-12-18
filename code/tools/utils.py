@@ -40,7 +40,13 @@ PTC_COLNAMES = natsorted(
 
 def extract_structure_elements(structure_name: str) -> Dict[str, int]:
     """
-    Extracts the structure elements from the structure name.
+    Extract the structure elements from the structure name.
+
+    Examples:
+
+    AgCl -> {Ag: 1, Cl: 1}
+
+    Rb2O2 -> {Rb: 2, O: 2}
     """
     elts = re.findall("[A-Z][^A-Z]*", structure_name)
     elements_nbrs = defaultdict(int)
@@ -91,6 +97,11 @@ def get_structure_encoding(structure_name, encoding) -> np.ndarray:
     res[-1] = total_atoms
 
     return res
+
+    # # code below would be better conceptually, but several orders of magnitude slower in practice
+    # df = pd.DataFrame({"structure": [structure_name]})
+    # df = encode_all_structures(df, encoding)
+    # return df.iloc[0, 1:].values
 
 
 def encode_all_structures(
