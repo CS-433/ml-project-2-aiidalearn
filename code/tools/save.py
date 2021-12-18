@@ -85,11 +85,9 @@ def save_datasets(
                     f"[green]Saved {name} to {datasets_save_dir}[/green]"
                 )
 
+
 def save_params(
-    encoding: StructureEncoding,
-    target: Target,
-    console: Console,
-    params_dir,
+    encoding: StructureEncoding, target: Target, console: Console, params_dir,
 ):
 
     Path(params_dir).mkdir(parents=True, exist_ok=True)
