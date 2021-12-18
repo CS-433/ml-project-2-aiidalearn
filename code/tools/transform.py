@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
@@ -53,7 +54,13 @@ class TargetMagnitudeTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, target):
-        return magnitude_transform(target)
+        if isinstance(target, pd.Series):
+            return target.apply(magnitude)
+        else:
+            return magnitude_transform(target)
 
-    def inverse_transform(self, log_target):
-        return magnitude_inv_transform(log_target)
+    def inverse_transform(self, target):
+        if isinstance(target, pd.Series):
+            return target.apply(magnitude_inv)
+        else:
+            return magnitude_inv_transform(target)
