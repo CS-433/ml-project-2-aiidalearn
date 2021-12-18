@@ -7,8 +7,6 @@ import xgboost as xgb
 from rich.console import Console
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.dummy import DummyClassifier
-from sklearn.pipeline import FeatureUnion, Pipeline
-from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
@@ -16,9 +14,16 @@ ROOT_DIR = os.path.dirname(
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
-from tools.save import save_as_baseline, save_datasets, save_models
-from tools.train import evaluate_classifiers, print_test_samples, train_classifiers, print_problematic_samples, cv_classifiers
+from tools.save import save_as_baseline
+from tools.train import (
+    evaluate_classifiers,
+    print_test_samples,
+    cv_classifiers,
+    train_models,
+)
 from tools.utils import StructureEncoding, Target, check_xgboost_gpu
+from tools.transform import TargetMagnitudeTransformer
+
 
 # Define global variables
 DATA_DIR = os.path.join(ROOT_DIR, "data/")
@@ -29,20 +34,17 @@ MODELS_DIR = os.path.join(ROOT_DIR, "models/delta_E_magnitude/")
 
 BASELINES_DIR = os.path.join(ROOT_DIR, "baselines/delta_E_magnitude/")
 
-def magnitude(x):
-    return int(np.floor(np.log10(x)))
-
-def magnitude_transform(a):
-    return -np.vectorize(magnitude)(a)
-
 
 def instantiate_models(console: Console):
     with console.status("") as status:
         status.update("[bold blue]Initializing models...")
 
-        dummy_model = DummyClassifier()
-
-        rf_params = {'n_estimators': 218, 'max_features': 'sqrt', 'max_depth': 205, 'random_state' : 0}
+        rf_params = {
+            "n_estimators": 218,
+            "max_features": "sqrt",
+            "max_depth": 205,
+            "random_state": 0,
+        }
         rf_model = RandomForestClassifier(**rf_params)
         console.log(f"[green] Initialized {rf_model}")
 
@@ -57,10 +59,11 @@ def instantiate_models(console: Console):
             console.print("[italic bright_black]Using CPU for XGBoost")
 
         return {
-            # "Dummy" : dummy_model
+            # "Dummy" : DummyClassifier(),
             "Random Forest": rf_model,
-             "XGBoost": xgb_model,
+            "XGBoost": xgb_model,
         }
+
 
 if __name__ == "__main__":
     console = Console(record=True)
@@ -69,8 +72,11 @@ if __name__ == "__main__":
     encodings = [StructureEncoding.ATOMIC]
     # encodings = list(StructureEncoding)
     for encoding in encodings:
-        console.log(f"[bold green]Started training pipeline for {encoding.value} encoding")
+        console.log(
+            f"[bold green]Started training pipeline for {encoding.value} encoding"
+        )
         target = Target.DELTA_E
+        target_transformer = TargetMagnitudeTransformer()
         test_sets_cfg = [
             TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
             TestSet("Structure gen.", size=0.1, split=TestSplit.STRUCTURE),
@@ -82,15 +88,15 @@ if __name__ == "__main__":
             encoding=encoding,
             data_path=DATA_PATH,
             test_sets_cfg=test_sets_cfg,
+            target_transformer=target_transformer,
             console=console,
             remove_ref_rows=True,
         )
         models = instantiate_models(console)
-        train_classifiers(models, X_train, y_train, console)
+        train_models(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
         cv_classifiers(models, X_train, y_train, console, shuffle=False)
         # cv_classifiers(models, X_train, y_train, console, shuffle=True)
-
 
         print_test_samples(models, test_sets, console)
         save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)

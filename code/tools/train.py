@@ -9,7 +9,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_error,
-    accuracy_score
+    accuracy_score,
 )
 
 from sklearn.model_selection import cross_validate, KFold
@@ -21,7 +21,6 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import custom_mape, percentile_absolute_percentage_error
 from tools.transform import magnitude_transform
-
 
 
 def train_models(models, X_train, y_train, console: Console):
@@ -83,16 +82,10 @@ def evaluate_models(models, X_train, y_train, test_sets, console: Console):
 
             console.print(table)
 
-def train_classifiers(models, X_train, y_train, console: Console):
-    with console.status("") as status:
-        for model_name, model in models.items():
-            status.update(f"[bold blue]Training {model_name}...")
-            magnitude_y_train = magnitude_transform(y_train)
-            model.fit(X_train, magnitude_y_train)
-            console.log(f"[blue]Finished training {model_name}[/blue]")
 
-
-def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
+def evaluate_classifiers(
+    models, X_train, y_train, test_sets, console: Console
+):
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Evaluating {model_name}...")
@@ -110,13 +103,12 @@ def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
                 model.predict(X_test) for _, X_test, _ in test_sets
             ]
 
-
             for loss_name, loss_fn in [
                 ("Accuracy", accuracy_score),
             ]:
-                train_loss = loss_fn(magnitude_transform(y_train), y_pred_train)
+                train_loss = loss_fn(y_train, y_pred_train)
                 test_losses = [
-                    loss_fn(magnitude_transform(y_test), y_pred_test)
+                    loss_fn(y_test, y_pred_test)
                     for (_, _, y_test), y_pred_test in zip(
                         test_sets, y_pred_tests
                     )
@@ -126,7 +118,10 @@ def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
                     table.add_row(
                         loss_name,
                         f"{100*train_loss:.2f}%",
-                        *[f"{100*test_loss:.2f}%" for test_loss in test_losses],
+                        *[
+                            f"{100*test_loss:.2f}%"
+                            for test_loss in test_losses
+                        ],
                     )
                 else:
                     table.add_row(
@@ -137,7 +132,10 @@ def evaluate_classifiers(models, X_train, y_train, test_sets, console: Console):
 
             console.print(table)
 
-def cv_classifiers(models, X_train, y_train, console: Console, ncv=5, shuffle=False):
+
+def cv_classifiers(
+    models, X_train, y_train, console: Console, ncv=5, shuffle=False
+):
     if shuffle:
         table = Table(title=f"Cross Validation {ncv}-fold with shuffle")
     else:
@@ -149,23 +147,31 @@ def cv_classifiers(models, X_train, y_train, console: Console, ncv=5, shuffle=Fa
     table.add_column("Test mean", justify="center", style="white")
     table.add_column("Test std", justify="center", style="white")
 
-
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Cross validating {model_name}...")
-            cv_iterators = KFold(n_splits=ncv, shuffle=shuffle, random_state=42)
-            cv_res = cross_validate(model, X_train, magnitude_transform(y_train), cv=cv_iterators, return_train_score=True)
-            train_scores = cv_res['train_score']
-            test_scores = cv_res['test_score']
-            table.add_row(*[
+            cv_iterators = KFold(
+                n_splits=ncv, shuffle=shuffle, random_state=42
+            )
+            cv_res = cross_validate(
+                model,
+                X_train,
+                magnitude_transform(y_train),
+                cv=cv_iterators,
+                return_train_score=True,
+            )
+            train_scores = cv_res["train_score"]
+            test_scores = cv_res["test_score"]
+            table.add_row(
                 f"{model_name}",
                 f"{100*np.mean(train_scores):.2f}%",
                 f"{np.std(train_scores):.6f}",
                 f"{100*np.mean(test_scores):.2f}%",
-                f"{np.std(test_scores):.6f}"
-            ])
+                f"{np.std(test_scores):.6f}",
+            )
 
     console.print(table)
+
 
 def print_test_samples(models, test_sets, console: Console, n_sample=10):
     for test_name, X_test, y_test in test_sets:
@@ -193,7 +199,10 @@ def print_test_samples(models, test_sets, console: Console, n_sample=10):
             table.add_row(*[f"{r[i]:.3E}" for r in results],)
         console.print(table)
 
-def print_problematic_samples(models, test_sets, console: Console, elts, n_sample=10):
+
+def print_problematic_samples(
+    models, test_sets, console: Console, elts, n_sample=10
+):
     for elt in elts:
         for test_name, X_test, y_test in test_sets:
             table = Table(title=f"Test samples - {test_name}")
@@ -206,7 +215,9 @@ def print_problematic_samples(models, test_sets, console: Console, elts, n_sampl
                 X_test.iloc[elt_mask].index, size=n_sample, replace=False
             )
             results = [
-                np.array(y_test[y_test.index.intersection(idx_sample)].squeeze())
+                np.array(
+                    y_test[y_test.index.intersection(idx_sample)].squeeze()
+                )
             ]
             for model_name, model in models.items():
                 results.append(

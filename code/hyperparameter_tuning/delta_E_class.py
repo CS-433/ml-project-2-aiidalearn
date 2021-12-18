@@ -15,7 +15,10 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_params
-from tools.train import evaluate_classifiers, train_classifiers
+from tools.train import (
+    evaluate_classifiers,
+    train_models,
+)
 from tools.transform import TargetMagnitudeTransformer
 from tools.utils import StructureEncoding, Target
 
@@ -101,5 +104,5 @@ if __name__ == "__main__":
         save_params(encoding, target, console, PARAMS_DIR)
 
         models = {"base model": base_model, "best model": best_model}
-        train_classifiers(models, X_train, y_train, console)
+        train_models(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
