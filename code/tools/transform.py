@@ -35,5 +35,25 @@ class CustomLogTargetTransformer(BaseEstimator, TransformerMixin):
 def magnitude(x):
     return int(np.floor(np.log10(x)))
 
+
+def magnitude_inv(x):
+    return 10 ** float(x - 1)
+
+
 def magnitude_transform(a):
-    return -np.vectorize(magnitude)(a)
+    return np.vectorize(magnitude)(a)
+
+
+def magnitude_inv_transform(a):
+    return np.vectorize(magnitude_inv)(a)
+
+
+class TargetMagnitudeTransformer(BaseEstimator, TransformerMixin):
+    def fit(self, target):
+        return self
+
+    def transform(self, target):
+        return magnitude_transform(target)
+
+    def inverse_transform(self, log_target):
+        return magnitude_inv_transform(log_target)
