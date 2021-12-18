@@ -42,7 +42,8 @@ def instantiate_models(console: Console):
 
         dummy_model = DummyClassifier()
 
-        rf_params = {'n_estimators': 218, 'max_features': 'sqrt', 'max_depth': 205, 'random_state' : 0}
+        rf_params = {'n_estimators': 500, 'max_features': 'sqrt', 'max_depth': 100, 'random_state' : 0}
+        # rf_params = {'n_estimators': 1000, 'max_features': 'sqrt', 'max_depth': 50, 'random_state': 0}
         rf_model = RandomForestClassifier(**rf_params)
         console.log(f"[green] Initialized {rf_model}")
 
@@ -88,12 +89,12 @@ if __name__ == "__main__":
         models = instantiate_models(console)
         train_classifiers(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
-        cv_classifiers(models, X_train, y_train, console, shuffle=False)
+        # cv_classifiers(models, X_train, y_train, console, shuffle=False)
         # cv_classifiers(models, X_train, y_train, console, shuffle=True)
 
 
         print_test_samples(models, test_sets, console)
-        save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
+        # save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
         #
         # models_to_save = {
         #     "Random Forest": (
