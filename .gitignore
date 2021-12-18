@@ -113,5 +113,8 @@ ENV/
 # Julia
 ./Manifest.toml
 
+# IDEA
+.idea
+
 # models
 models/*
