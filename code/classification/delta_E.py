@@ -14,7 +14,7 @@ ROOT_DIR = os.path.dirname(
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
-from tools.save import save_as_baseline
+from tools.save import save_as_baseline, save_models, save_datasets
 from tools.train import (
     evaluate_classifiers,
     print_test_samples,
@@ -61,7 +61,7 @@ def instantiate_models(console: Console):
         return {
             # "Dummy" : DummyClassifier(),
             "Random Forest": rf_model,
-            "XGBoost": xgb_model,
+            # "XGBoost": xgb_model,
         }
 
 
@@ -95,27 +95,27 @@ if __name__ == "__main__":
         models = instantiate_models(console)
         train_models(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
-        cv_classifiers(models, X_train, y_train, console, shuffle=False)
+        # cv_classifiers(models, X_train, y_train, console, shuffle=False)
         # cv_classifiers(models, X_train, y_train, console, shuffle=True)
 
-        print_test_samples(models, test_sets, console)
+        # print_test_samples(models, test_sets, console)
         save_as_baseline(encoding, console, BASELINES_DIR, prompt_user)
-        #
-        # models_to_save = {
-        #     "Random Forest": (
-        #         models["Random Forest"],
-        #         "random_forest_model.pkl",
-        #     ),
-        #     "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
-        # }
-        # save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
-        # save_datasets(
-        #     X_train,
-        #     y_train,
-        #     test_sets,
-        #     encoding,
-        #     console,
-        #     MODELS_DIR,
-        #     prompt_user,
-        # )
+        models_to_save = {
+            "Random Forest": (
+                models["Random Forest"],
+                "random_forest_model.pkl",
+            ),
+            # "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+        }
+        save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
+
+        save_datasets(
+            X_train,
+            y_train,
+            test_sets,
+            encoding,
+            console,
+            MODELS_DIR,
+            prompt_user,
+        )
