@@ -38,11 +38,11 @@ def magnitude(x):
 
 
 def magnitude_inv(x):
-    return 10 ** float(x - 1)
+    return 10 ** float(-x)
 
 
 def magnitude_transform(a):
-    return np.vectorize(magnitude)(a)
+    return -np.vectorize(magnitude)(a)
 
 
 def magnitude_inv_transform(a):
