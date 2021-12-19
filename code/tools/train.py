@@ -150,13 +150,16 @@ def cv_classifiers(
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Cross validating {model_name}...")
-            cv_iterators = KFold(
-                n_splits=ncv, shuffle=shuffle, random_state=42
-            )
+            if shuffle:
+                cv_iterators = KFold(
+                    n_splits=ncv, shuffle=True, random_state=42
+                )
+            else:
+                cv_iterators = KFold(n_splits=ncv, shuffle=False)
             cv_res = cross_validate(
                 model,
                 X_train,
-                magnitude_transform(y_train),
+                y_train,
                 cv=cv_iterators,
                 return_train_score=True,
             )
