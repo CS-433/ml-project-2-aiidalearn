@@ -19,10 +19,15 @@ function pull_generate_jobs(nelements, nsites, api_key, server, root, args...)
 
     valid_atsyms = keys(DFControl.Client.list_pseudoset(server, "sssp_efficiency"))
     
-    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[1:600]
+    for sys in filter(x -> all(y->Symbol(y) ∈ valid_atsyms, keys(x["formula"])),  unique(x -> x["formula"], JSON3.read(resp.body, Dict)["response"]))[601:end]
         sysname_old = sys["pretty_formula"]
-        arr = [i > 1 && uppercase(c) == c  ? "1"*c  : c  for (i, c) in enumerate(sysname_old)]
-        sysname = string(join(arr), "1")
+        arr = [i > 1 && uppercase(c) == c ? "1"*c  : c  for (i, c) in enumerate(sysname_old)]
+        arr_str = join(arr)
+        if length(arr_str) == length(sysname_old)+1
+            sysname = string(arr_str, "1")
+        else 
+            sysname = sysname_old
+        end
         sysdir  = datadir(sysname)
         @info "Creating run for $sysname."
         mkpath(sysdir)
