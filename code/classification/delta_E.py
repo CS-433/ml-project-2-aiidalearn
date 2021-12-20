@@ -60,7 +60,7 @@ def instantiate_models(console: Console):
         return {
             # "Dummy" : DummyClassifier(),
             "Random Forest": rf_model,
-            # "XGBoost": xgb_model,
+            "XGBoost": xgb_model,
         }
 
 
@@ -91,6 +91,8 @@ if __name__ == "__main__":
             console=console,
             remove_ref_rows=True,
         )
+
+        console.print(f"Class labels: {np.unique(y_train.to_numpy())}")
         models = instantiate_models(console)
         train_models(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
@@ -105,7 +107,7 @@ if __name__ == "__main__":
                 models["Random Forest"],
                 "random_forest_model.pkl",
             ),
-            # "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+            "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
         }
         save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
