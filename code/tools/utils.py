@@ -28,6 +28,7 @@ class Target(Enum):
     SIM_TIME = "time"
     DELTA_E = "delta_E"
     CONVERGED = "converged"
+    DELTA_E_MAGNITUDE = "delta_E_magnitude"
 
 
 PERIODIC_TABLE_INFO = load_json(
