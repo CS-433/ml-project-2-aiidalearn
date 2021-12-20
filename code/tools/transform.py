@@ -34,7 +34,7 @@ class CustomLogTargetTransformer(BaseEstimator, TransformerMixin):
 
 
 def magnitude(x):
-    return int(np.floor(np.log10(x)))
+    return -int(np.floor(np.log10(x)))
 
 
 def magnitude_inv(x):
