@@ -142,7 +142,7 @@ def base_loader(
 
 def get_columns(target: Target) -> Tuple[List[str], List[str]]:
     """Function that returns the column names of the columns that have to be dropped from the observations.
-
+    
     Parameters
     ----------
     target : Target
