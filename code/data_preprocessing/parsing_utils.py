@@ -49,9 +49,9 @@ def compute_delta_E(df: pd.DataFrame) -> Tuple[pd.DataFrame, float]:
     idx_ref = 0
     for idx, row in df.loc[df["converged"]].iterrows():
         if (
-            row["ecutwfc"] > df.loc[df["converged"], "ecutwfc"][idx_ref]
-            or row["ecutrho"] > df.loc[df["converged"], "ecutrho"][idx_ref]
-            or row["k_density"] < df.loc[df["converged"], "k_density"][idx_ref]
+                row["ecutwfc"] > df.loc[df["converged"], "ecutwfc"][idx_ref]
+                or row["ecutrho"] > df.loc[df["converged"], "ecutrho"][idx_ref]
+                or row["k_density"] < df.loc[df["converged"], "k_density"][idx_ref]
         ):
             idx_ref = idx
 
@@ -161,10 +161,10 @@ def print_data_summary(df: pd.DataFrame = None):
 
 
 def parse_all_data_json(
-    data_dir: str,
-    data_savepath: str,
-    ref_energy_savepath: str,
-    inv_k_density: bool = False,
+        data_dir: str,
+        data_savepath: str,
+        ref_energy_savepath: str,
+        inv_k_density: bool = False,
 ) -> pd.DataFrame:
     """Function to parse the json files in the data directory. It is assumed that in the data directory there is a
     subdirectory for each structure containing a file named 'data.json' containing the simulation outputs. Furthermore,
@@ -195,10 +195,10 @@ def parse_all_data_json(
     nb_folders = len(os.listdir(data_dir))
     console = Console()
     for struct_dir in track(
-        p.iterdir(),
-        description="Parsing structures...",
-        total=nb_folders,
-        console=console,
+            p.iterdir(),
+            description="Parsing structures...",
+            total=nb_folders,
+            console=console,
     ):
         if not struct_dir.is_dir():
             continue
@@ -250,8 +250,8 @@ def parse_all_data_json(
 if __name__ == "__main__":
     print_data_summary()
     if not (
-        check_parsing(DATA_DIR, DATA_CSV)
-        and input("Reparse data? (y/[n]) ") != "y"
+            check_parsing(DATA_DIR, DATA_CSV)
+            and input("Reparse data? (y/[n]) ") != "y"
     ):
         df = parse_all_data_json(
             DATA_DIR, DATA_CSV, REF_ENERGY_CSV, inv_k_density=True

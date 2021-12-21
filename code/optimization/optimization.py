@@ -3,11 +3,13 @@ import os
 import pickle
 import sys
 from pathlib import Path
+from typing import List, Tuple, Dict
 
 import numpy as np
 import pandas as pd
 from rich.console import Console
 from rich.progress import track
+from sklearn.base import BaseEstimator
 from scipy.optimize import differential_evolution
 
 ROOT_DIR = os.path.dirname(
@@ -31,10 +33,33 @@ DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 
 def load_models(
-    delta_E_model_name=None,
-    log_delta_E_model_name=None,
-    sim_time_model_name=None,
+        delta_E_model_name: str = None,
+        log_delta_E_model_name: str = None,
+        sim_time_model_name: str = None,
 ):
+    """Function to load the pretrained models from their pickle files.
+    
+
+    Parameters
+    ----------
+    delta_E_model_name : str, optional
+        Path to delta_E_model relative to directory 'models'. The default is None.
+    log_delta_E_model_name : str, optional
+        Path to log_delta_E_model relative to directory 'models'. The default is None.
+    sim_time_model_name : str, optional
+        Path to sim_time relative to directory 'models'. The default is None.
+
+    Raises
+    ------
+    FileNotFoundError
+        when models cannot be found in the specified directories.
+
+    Yields
+    ------
+    BaseEstimator
+        Models loaded from pickle files.
+
+    """
     for model_name, model_dir in [
         (delta_E_model_name, DELTA_E_MODELS_DIR),
         (log_delta_E_model_name, LOG_DELTA_E_MODELS_DIR),
@@ -53,7 +78,21 @@ def load_models(
             yield pickle.load(file)
 
 
-def get_features_name(encoding):
+def get_features_name(encoding: StructureEncoding) -> List[str]:
+    """Helper function to retrieve the column names of the data frame with a specified encoding. Simplifies the
+    construction of inputs to the models in 'delta_E_prediction' and 'sim_time_prediction'.
+
+    Parameters
+    ----------
+    encoding : StructureEncoding
+        Chosen encoding for the chemical structures.
+
+    Returns
+    -------
+    List[str]
+        Column names of the data frame with the specified encoding.
+
+    """
     res = ["ecutrho", "k_density", "ecutwfc"]
     if encoding == StructureEncoding.ATOMIC:
         res += list(PERIODIC_TABLE_INFO.keys())
@@ -62,34 +101,137 @@ def get_features_name(encoding):
     return res + ["total_atoms"]
 
 
-def sanitize_input(x):
+def sanitize_input(x: np.array) -> np.array:
+    """Rounds values in an array of floats to the nearest integer.
+
+    Parameters
+    ----------
+    x : np.array
+        array containing arbitrary floating point numbers.
+
+    Returns
+    -------
+    np.array
+        array containing rounded values to the nearest integer.
+
+    """
     return np.array([int(round(x_i)) for x_i in x])
 
 
-def delta_E_prediction(x, model, structure_encoding, delta_E_features):
+def delta_E_prediction(
+        x: np.array,
+        model: BaseEstimator,
+        structure_encoding: np.array,
+        delta_E_features: List[str]
+) -> float:
+    """Wrapper around BaseModel.predict() for the predictor of ∆E. This function is used to fix the structure and the
+    encoding but vary the parameters ["ecutrho", "k_density", "ecutwfc"].
+    
+
+    Parameters
+    ----------
+    x : np.array
+        Array containing the simulation parameters ["ecutrho", "k_density", "ecutwfc"].
+    model : BaseEstimator
+        sklearn model predicting ∆E for a specific encoding (StructureEncoding).
+    structure_encoding : np.array
+        Array containing an encoded chemical structure with the encoding on which the model has been trained.
+    delta_E_features : List[str]
+        List of column names of the train set on which the model has been trained.
+
+    Returns
+    -------
+    float
+        prediction of ∆E.
+
+    """
     input = np.concatenate([x, structure_encoding])
     input = pd.DataFrame(input.reshape(1, -1), columns=delta_E_features)
     return model.predict(input)[0]
 
 
-def sim_time_prediction(x, model, structure_encoding, sim_time_features):
+def sim_time_prediction(
+        x: np.array,
+        model: BaseEstimator,
+        structure_encoding: np.array,
+        sim_time_features: List[str]
+) -> float:
+    """Wrapper around BaseModel.predict() for the predictor of sim_time. This function is used to fix the structure
+     and the encoding but vary the parameters ["ecutrho", "k_density", "ecutwfc"].
+
+
+    Parameters
+    ----------
+    x : np.array
+        Array containing the simulation parameters ["ecutrho", "k_density", "ecutwfc"].
+    model : BaseEstimator
+        sklearn model predicting sim_time for a specific encoding (StructureEncoding).
+    structure_encoding : np.array
+        Array containing an encoded chemical structure with the encoding on which the model has been trained.
+    sim_time_features : List[str]
+        List of column names of the train set on which the model has been trained.
+
+    Returns
+    -------
+    float
+        prediction of sim_time.
+
+    """
     input = np.concatenate([x, structure_encoding])
     input = pd.DataFrame(input.reshape(1, -1), columns=sim_time_features)
     return model.predict(input)[0]
 
 
 def get_optimal_parameters(
-    structure_name: str,
-    max_delta_E: float,
-    encoding_delta_E: StructureEncoding,
-    encoding_sim_time: StructureEncoding,
-    feature_bounds: dict,
-    delta_E_model=None,
-    sim_time_model=None,
-    log_delta_E_model=None,
-    transformer=None,
-    verbose=False,
-):
+        structure_name: str,
+        max_delta_E: float,
+        encoding_delta_E: StructureEncoding,
+        encoding_sim_time: StructureEncoding,
+        feature_bounds: dict,
+        delta_E_model: BaseEstimator = None,
+        sim_time_model: BaseEstimator = None,
+        log_delta_E_model: BaseEstimator = None,
+        transformer: Transformer = None,
+        verbose: bool = False,
+) -> Tuple[np.array, float, float]:
+    """
+    
+
+    Parameters
+    ----------
+    structure_name : str
+        Name of the chemical structure.
+    max_delta_E : float
+        Max. accepted value of ∆E.
+    encoding_delta_E : StructureEncoding
+        Encoding of the chemical structures used in the delta_E model.
+    encoding_sim_time : StructureEncoding
+        Encoding of the chemical structures used in the sim_time_model.
+    feature_bounds : dict
+        Bounds for the domain of the features ["ecutrho", "k_density", "ecutwfc"].
+    delta_E_model : BaseEstimator, optional
+        Model predicting ∆E. The default is None.
+    sim_time_model : BaseEstimator, optional
+        Model predicting the simulation time. The default is None.
+    log_delta_E_model : BaseEstimator, optional
+        Model predicting log(∆E). The default is None.
+    transformer : Transformer, optional
+        Transformer of the target value. The default is None. Necessary for log_delta_E_model.
+    verbose : bool, optional
+        Verbosity level of output. The default is False.
+
+    Raises
+    ------
+    ValueError
+        when transformer for log(∆E) model is not provided.
+
+    Returns
+    -------
+    Tuple[np.array, float, float]
+        Array with the optimal parameters, the predicted simulation time with the optimal parameters, predicted value
+        of ∆E.
+
+    """
     if log_delta_E_model is not None and delta_E_model is not None:
         raise ValueError(
             "Only one of delta_E_model and log_delta_E_model can be provided"
@@ -111,8 +253,9 @@ def get_optimal_parameters(
     )
 
     if delta_E_model is not None:
-
         def delta_E_pred_func(x):
+            """Function to make a prediction of delta_E for a fixed structure
+            """
             return delta_E_prediction(
                 sanitize_input(x),
                 delta_E_model,
@@ -125,6 +268,8 @@ def get_optimal_parameters(
             raise ValueError("transformer must be provided")
 
         def delta_E_pred_func(x):
+            """Function to make a prediction of delta_E for a fixed structure
+            """
             return transformer.inverse_transform(
                 delta_E_prediction(
                     sanitize_input(x),
@@ -135,6 +280,8 @@ def get_optimal_parameters(
             )
 
     def sim_time_pred_func(x):
+        """Function to make a prediction of the simulation time for a fixed structure
+        """
         return sim_time_prediction(
             sanitize_input(x),
             sim_time_model,
@@ -142,14 +289,16 @@ def get_optimal_parameters(
             get_features_name(encoding_sim_time),
         )
 
-    mu = 1e100
+    mu = 1e100  # Penalization parameter
 
     def pen_func(x):
+        """Function to be optimizied to solve the penalized problem. Penalization can be adjusted by changing 'mu'.
+        """
         return (
-            sim_time_pred_func(sanitize_input(x))
-            + mu
-            * max(delta_E_pred_func(sanitize_input(x)) - max_delta_E, 0)
-            / max_delta_E
+                sim_time_pred_func(sanitize_input(x))
+                + mu
+                * max(delta_E_pred_func(sanitize_input(x)) - max_delta_E, 0)
+                / max_delta_E
         )
 
     res = differential_evolution(
@@ -178,7 +327,22 @@ def get_optimal_parameters(
     return x_f, sim_time, delta_E
 
 
-def get_feature_bounds(data_path):
+def get_feature_bounds(data_path: str) -> Dict[Tuple[float, float]]:
+    """Helper function that determines the domain of the parameters ["ecutrho", "k_density", "ecutwfc"] in the dataset.
+    This is necessary since Random Forest Model by definition cannot extrapolate. Therefore, the optimizer can only
+    search for optimal parameters within these bounds.
+
+    Parameters
+    ----------
+    data_path : str
+        Path to data.csv file with all the parsed data.
+
+    Returns
+    -------
+    Dict[Tuple[float, float]]
+        Dictionary with an entry for each parameter in["ecutrho", "k_density", "ecutwfc"] with upper and lower bound.
+
+    """
     data = pd.read_csv(data_path, na_filter=False)
     return {
         "ecutrho": (data["ecutrho"].min(), data["ecutrho"].max()),
@@ -226,7 +390,7 @@ if __name__ == "__main__":
     max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
     predictions = []
     for structure_name in track(
-        structure_list, description="Optimizing parameters...", console=console
+            structure_list, description="Optimizing parameters...", console=console
     ):
         for max_delta_E in max_delta_E_list:
             console.print(
@@ -259,7 +423,7 @@ if __name__ == "__main__":
 
     # saving in json format
     with open(
-        os.path.join(os.path.dirname(__file__), "optimization_results.json"),
-        "w",
+            os.path.join(os.path.dirname(__file__), "optimization_results.json"),
+            "w",
     ) as f:
         json.dump(predictions, f, indent=2)
