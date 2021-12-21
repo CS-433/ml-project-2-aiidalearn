@@ -34,18 +34,70 @@ class CustomLogTargetTransformer(BaseEstimator, TransformerMixin):
 
 
 def magnitude(x: float) -> int:
+    """Returns negative order of magnitude of a nonzero floating point number, i.e.
+        x = a*10^-n -> n
+
+    Parameters
+    ----------
+    x : float
+        Nonzero floating point number.
+
+    Returns
+    -------
+    int
+        Order of magnitude.
+
+    """
     return -int(np.floor(np.log10(x)))
 
 
-def magnitude_inv(x: int) -> float:
-    return 10 ** float(-x)
+def magnitude_inv(n: int) -> float:
+    """(Pseudo-)inverse transformation of 'magnitude', i.e. n -> 10^{-n}
+
+    Parameters
+    ----------
+    n : int
+        Neg. order of magnitude.
+
+    Returns
+    -------
+    float
+
+    """
+    return 10 ** float(-n)
 
 
 def magnitude_transform(a: np.array) -> np.array:
+    """Vectorized version of magnitude
+
+
+    Parameters
+    ----------
+    a : np.array of nonzero floats
+        Array of numbers to transform.
+
+    Returns
+    -------
+    np.array of ints
+        Neg. magnitudes of numbers in a.
+
+    """
     return np.vectorize(magnitude)(a)
 
 
 def magnitude_inv_transform(a: np.array) -> np.array:
+    """Vectorized version of magnitude_inf
+
+
+    Parameters
+    ----------
+    a : np.array of nonnegative integers
+
+    Returns
+    -------
+    np.array of floats
+
+    """
     return np.vectorize(magnitude_inv)(a)
 
 

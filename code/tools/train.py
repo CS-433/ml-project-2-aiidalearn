@@ -26,11 +26,30 @@ from tools.transform import magnitude_transform
 
 
 def train_models(
-        models: Dict[str, Tuple[BaseEstimator, str]],
+        models: Dict[BaseEstimator],
         X_train: np.ndarray,
         y_train: np.array,
         console: Console
 ) -> object:
+    """Wrapper around the sklearn.BaseEstimator method 'fit' with logging functionality.
+    
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator]
+        Dictionary of models
+    X_train : np.ndarray
+        Train set.
+    y_train : np.array
+        Train target set.
+    console : Console
+        Console object for logging purposes.
+
+    Returns
+    -------
+    None.
+
+    """
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Training {model_name}...")
@@ -39,12 +58,35 @@ def train_models(
 
 
 def evaluate_models(
-        models: Dict[str, Tuple[BaseEstimator, str]],
+        models: Dict[BaseEstimator, str],
         X_train: np.ndarray,
         y_train: np.array,
         test_sets: List[Tuple[str, np.ndarray, np.array]],
         console: Console
 ):
+    """Wrapper around the sklearn.BaseEstimator method 'predict' and scoring metrics for REGRESSION MODELS
+     with logging functionality. Works well in combination with 'tools.save.save_as_baseline'. For CLASSIFIERS see
+     'evaluate_classifiers'.
+    
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator]
+        Dictionary of models
+    X_train : np.ndarray
+        Train set.
+    y_train : np.array
+        Train target set.
+    test_sets : List[Tuple[str, np.ndarray, np.array]]
+        List of test sets on which the models should be evaluated.
+    console : Console
+        Console object for logging purposes.
+
+    Returns
+    -------
+    None.
+
+    """
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Evaluating {model_name}...")
@@ -97,12 +139,35 @@ def evaluate_models(
 
 
 def evaluate_classifiers(
-    models: Dict[str, Tuple[BaseEstimator, str]],
+    models: Dict[BaseEstimator, str],
     X_train: np.ndarray,
     y_train: np.array,
     test_sets: List[Tuple[str, np.ndarray, np.array]],
     console: Console
 ):
+    """Wrapper around the sklearn.BaseEstimator method 'predict' and scoring metrics for CLASSIFIERS
+     with logging functionality. Works well in combination with 'tools.save.save_as_baseline'. For REGRESSION MODELS see
+     'evaluate_models'.
+    
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator]
+        Dictionary of models
+    X_train : np.ndarray
+        Train set.
+    y_train : np.array
+        Train target set.
+    test_sets : List[Tuple[str, np.ndarray, np.array]]
+        List of test sets on which the models should be evaluated.
+    console : Console
+        Console object for logging purposes.
+
+    Returns
+    -------
+    None.
+
+    """
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Evaluating {model_name}...")
@@ -151,13 +216,38 @@ def evaluate_classifiers(
 
 
 def cv_classifiers(
-    models: Dict[str, Tuple[BaseEstimator, str]],
+    models: Dict[BaseEstimator, str],
     X_train: np.ndarray,
     y_train: np.array,
     console: Console,
     ncv=5,
     shuffle=False
 ):
+    """Wrapper around sklearn.model_selection.cross_validate and  ..KFold to cross-validate multiple classifiers with
+    logging to console. Also works with 'tools.save.save_as_baseline' to save the console output as html. Note that
+    in the context of this project, shuffle=False corresponds to CV w.r.t to unseen structures while shuffle=False
+    corresponds to CV w.r.t to unseen parameters. For details see report.
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator]
+        Dictionary of models
+    X_train : np.ndarray
+        Train set.
+    y_train : np.array
+        Train target set.
+    console : Console
+        Console object for logging purposes.
+    ncv : int, optional
+        Number of splits in cross-vaidation. The default is 5.
+    shuffle : bool, optional
+        Whether the rows should be shuffled before performing the splits. The default is False.
+
+    Returns
+    -------
+    None.
+
+    """
     if shuffle:
         table = Table(title=f"Cross Validation {ncv}-fold with shuffle")
     else:
@@ -199,11 +289,30 @@ def cv_classifiers(
 
 
 def print_test_samples(
-    models: Dict[str, Tuple[BaseEstimator, str]],
+    models: Dict[BaseEstimator],
     test_sets: List[Tuple[str, np.ndarray, np.array]],
     console: Console,
     n_sample=10
 ):
+    """Print function for output of sample predictions for manual inspection.
+    
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator, str]
+        Dictionary of models.
+    test_sets : List[Tuple[str, np.ndarray, np.array]]
+        List of test sets.
+    console : Console
+        Console object to print the samples to.
+    n_sample : int, optional
+        number of samples that should be printed. The default is 10.
+
+    Returns
+    -------
+    None.
+
+    """
     for test_name, X_test, y_test in test_sets:
         table = Table(title=f"Test samples - {test_name}")
         table.add_column("Real", justify="center", style="green")
@@ -231,12 +340,33 @@ def print_test_samples(
 
 
 def print_problematic_samples(
-        models: Dict[str, Tuple[BaseEstimator, str]],
+        models: Dict[BaseEstimator],
         test_sets: List[Tuple[str, np.ndarray, np.array]],
         console: Console,
         elts: List[str],
         n_sample: object = 10
-) -> object:
+):
+    """Print function for output of sample predictions for manual inspection of suspicious elements.
+    
+
+    Parameters
+    ----------
+    models : Dict[BaseEstimator, str]
+        Dictionary of models.
+    test_sets : List[Tuple[str, np.ndarray, np.array]]
+        List of test sets.
+    console : Console
+        Console object to which the results are printed.
+    elts : List[str]
+        List of element keys, e.g. 'H', 'Fe'.
+    n_sample : object, optional
+        Number of samples that should be printed. The default is 10.
+
+    Returns
+    -------
+    None.
+
+    """
     for elt in elts:
         for test_name, X_test, y_test in test_sets:
             table = Table(title=f"Test samples - {test_name}")
