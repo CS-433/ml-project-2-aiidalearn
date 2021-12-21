@@ -2,6 +2,7 @@ import os
 import pickle
 import sys
 from pathlib import Path
+from sklearn.base import BaseEstimator
 
 import numpy as np
 import pandas as pd
@@ -33,13 +34,14 @@ def save_as_baseline(
 
 
 def save_models(
-    models,
+    models: Dict[str, Tuple[BaseEstimator, str]],
     encoding: StructureEncoding,
     console: Console,
-    models_dir,
+    models_dir: str,
     prompt_user=True,
     transformer=None,
 ):
+
     if not prompt_user or input("Save models? (y/[n]) ") == "y":
         models_save_dir = os.path.join(models_dir, encoding.value)
         Path(models_save_dir).mkdir(parents=True, exist_ok=True)
@@ -64,12 +66,12 @@ def save_models(
 
 
 def save_datasets(
-    X_train,
-    y_train,
-    test_sets,
+    X_train: np.ndarray,
+    y_train: np.array,
+    test_sets: List,
     encoding: StructureEncoding,
     console: Console,
-    models_dir,
+    models_dir: str,
     prompt_user=True,
 ):
     if not prompt_user or input("Save datasets? (y/[n]) ") == "y":
@@ -87,7 +89,7 @@ def save_datasets(
 
 
 def save_params(
-    encoding: StructureEncoding, target: Target, console: Console, params_dir,
+    encoding: StructureEncoding, target: Target, console: Console, params_dir: str,
 ):
 
     Path(params_dir).mkdir(parents=True, exist_ok=True)
@@ -100,7 +102,7 @@ def save_params(
 def load_saved_datasets(
     encoding: StructureEncoding,
     console: Console,
-    models_dir,
+    models_dir: str,
     prompt_user=True,
 ):
     if not prompt_user or input("Load datasets? (y/[n]) ") == "y":

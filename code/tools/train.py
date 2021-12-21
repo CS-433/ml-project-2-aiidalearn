@@ -1,10 +1,12 @@
 import os
 import sys
 from pathlib import Path
+from typing import List, Dict, Tuple
 
 import numpy as np
 from rich.console import Console
 from rich.table import Table
+from sklearn.base import BaseEstimator
 from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
@@ -23,7 +25,12 @@ from tools.utils import custom_mape, percentile_absolute_percentage_error
 from tools.transform import magnitude_transform
 
 
-def train_models(models, X_train, y_train, console: Console):
+def train_models(
+        models: Dict[str, Tuple[BaseEstimator, str]],
+        X_train: np.ndarray,
+        y_train: np.array,
+        console: Console
+) -> object:
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Training {model_name}...")
@@ -31,7 +38,13 @@ def train_models(models, X_train, y_train, console: Console):
             console.log(f"[blue]Finished training {model_name}[/blue]")
 
 
-def evaluate_models(models, X_train, y_train, test_sets, console: Console):
+def evaluate_models(
+        models: Dict[str, Tuple[BaseEstimator, str]],
+        X_train: np.ndarray,
+        y_train: np.array,
+        test_sets: List[Tuple[str, np.ndarray, np.array]],
+        console: Console
+):
     with console.status("") as status:
         for model_name, model in models.items():
             status.update(f"[bold blue]Evaluating {model_name}...")
@@ -84,7 +97,11 @@ def evaluate_models(models, X_train, y_train, test_sets, console: Console):
 
 
 def evaluate_classifiers(
-    models, X_train, y_train, test_sets, console: Console
+    models: Dict[str, Tuple[BaseEstimator, str]],
+    X_train: np.ndarray,
+    y_train: np.array,
+    test_sets: List[Tuple[str, np.ndarray, np.array]],
+    console: Console
 ):
     with console.status("") as status:
         for model_name, model in models.items():
@@ -134,7 +151,12 @@ def evaluate_classifiers(
 
 
 def cv_classifiers(
-    models, X_train, y_train, console: Console, ncv=5, shuffle=False
+    models: Dict[str, Tuple[BaseEstimator, str]],
+    X_train: np.ndarray,
+    y_train: np.array,
+    console: Console,
+    ncv=5,
+    shuffle=False
 ):
     if shuffle:
         table = Table(title=f"Cross Validation {ncv}-fold with shuffle")
@@ -176,7 +198,12 @@ def cv_classifiers(
     console.print(table)
 
 
-def print_test_samples(models, test_sets, console: Console, n_sample=10):
+def print_test_samples(
+    models: Dict[str, Tuple[BaseEstimator, str]],
+    test_sets: List[Tuple[str, np.ndarray, np.array]],
+    console: Console,
+    n_sample=10
+):
     for test_name, X_test, y_test in test_sets:
         table = Table(title=f"Test samples - {test_name}")
         table.add_column("Real", justify="center", style="green")
@@ -204,8 +231,12 @@ def print_test_samples(models, test_sets, console: Console, n_sample=10):
 
 
 def print_problematic_samples(
-    models, test_sets, console: Console, elts, n_sample=10
-):
+        models: Dict[str, Tuple[BaseEstimator, str]],
+        test_sets: List[Tuple[str, np.ndarray, np.array]],
+        console: Console,
+        elts: List[str],
+        n_sample: object = 10
+) -> object:
     for elt in elts:
         for test_name, X_test, y_test in test_sets:
             table = Table(title=f"Test samples - {test_name}")

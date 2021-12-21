@@ -33,19 +33,19 @@ class CustomLogTargetTransformer(BaseEstimator, TransformerMixin):
         return self.log_transformer.inverse_transform(log_target)
 
 
-def magnitude(x):
+def magnitude(x: float) -> int:
     return -int(np.floor(np.log10(x)))
 
 
-def magnitude_inv(x):
+def magnitude_inv(x: int) -> float:
     return 10 ** float(-x)
 
 
-def magnitude_transform(a):
+def magnitude_transform(a: np.array) -> np.array:
     return -np.vectorize(magnitude)(a)
 
 
-def magnitude_inv_transform(a):
+def magnitude_inv_transform(a: np.array) -> np.array:
     return np.vectorize(magnitude_inv)(a)
 
 
