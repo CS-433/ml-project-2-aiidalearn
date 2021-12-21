@@ -28,11 +28,10 @@ class Target(Enum):
     SIM_TIME = "time"
     DELTA_E = "delta_E"
     CONVERGED = "converged"
-    DELTA_E_MAGNITUDE = "delta_E_magnitude"
 
 
 PERIODIC_TABLE_INFO = load_json(
-    os.path.join(os.path.dirname(__file__), "periodic_table_info.json", )
+    os.path.join(os.path.dirname(__file__), "periodic_table_info.json",)
 )
 PTC_COLNAMES = natsorted(
     list(set(PERIODIC_TABLE_INFO[elt]["PTC"] for elt in PERIODIC_TABLE_INFO))
@@ -60,7 +59,9 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
     return dict(elements_nbrs)
 
 
-def get_structure_encoding(structure_name: str, encoding: StructureEncoding) -> np.ndarray:
+def get_structure_encoding(
+    structure_name: str, encoding: StructureEncoding
+) -> np.ndarray:
     periodic_elt_list = list(PERIODIC_TABLE_INFO.keys())
     if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         res = np.zeros(len(PTC_COLNAMES) + 1)
@@ -93,7 +94,7 @@ def get_structure_encoding(structure_name: str, encoding: StructureEncoding) -> 
             blocks = ["s", "p", "d", "f"]
             for idx_block, block in enumerate(blocks):
                 res[idx_block] += (
-                        valence_band[block] / valence_band["outermost"]
+                    valence_band[block] / valence_band["outermost"]
                 )
     res[-1] = total_atoms
 
@@ -106,7 +107,7 @@ def get_structure_encoding(structure_name: str, encoding: StructureEncoding) -> 
 
 
 def encode_all_structures(
-        df: pd.DataFrame, encoding: StructureEncoding,
+    df: pd.DataFrame, encoding: StructureEncoding,
 ) -> pd.DataFrame:
     if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
@@ -136,18 +137,18 @@ def encode_all_structures(
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 df.loc[df["structure"] == structure_name, ptc] += (
-                        nb_elt / total_atoms
+                    nb_elt / total_atoms
                 )
             elif encoding == StructureEncoding.COLUMN_MASS:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
                 ptc = ELEMENT_INFO["PTC"]
                 elt_mass = ELEMENT_INFO["mass"]
                 df.loc[df["structure"] == structure_name, ptc] += (
-                        nb_elt * elt_mass / total_mass
+                    nb_elt * elt_mass / total_mass
                 )
             elif encoding == StructureEncoding.ATOMIC:
                 df.loc[df["structure"] == structure_name, elt] = (
-                        nb_elt / total_atoms
+                    nb_elt / total_atoms
                 )
             elif encoding == StructureEncoding.VALENCE_CONFIG:
                 ELEMENT_INFO = PERIODIC_TABLE_INFO[elt]
@@ -156,7 +157,7 @@ def encode_all_structures(
                 blocks = ["s", "p", "d", "f"]
                 for block in blocks:
                     df.loc[df["structure"] == structure_name, block] += (
-                            valence_band[block] / valence_band["outermost"]
+                        valence_band[block] / valence_band["outermost"]
                     )
 
     return df
@@ -196,7 +197,9 @@ def absolute_percentage_error(y_true: np.array, y_pred: np.array) -> float:
     return np.abs(y_pred - y_true) / np.maximum(np.abs(y_true), epsilon)
 
 
-def percentile_absolute_percentage_error(y_true: np.array, y_pred: np.array, percentile=50) -> float:
+def percentile_absolute_percentage_error(
+    y_true: np.array, y_pred: np.array, percentile=50
+) -> float:
     ape = absolute_percentage_error(y_true, y_pred)
     return np.percentile(ape, percentile)
 

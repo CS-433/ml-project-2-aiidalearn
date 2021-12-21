@@ -42,7 +42,7 @@ def magnitude_inv(x: int) -> float:
 
 
 def magnitude_transform(a: np.array) -> np.array:
-    return -np.vectorize(magnitude)(a)
+    return np.vectorize(magnitude)(a)
 
 
 def magnitude_inv_transform(a: np.array) -> np.array:
