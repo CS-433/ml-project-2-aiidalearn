@@ -9,6 +9,7 @@ Created on Tue Nov 23 14:32:26 2021
 import os
 import sys
 from pathlib import Path
+from typing import Tuple
 
 import pandas as pd
 from rich.console import Console
@@ -26,7 +27,25 @@ DATA_CSV = os.path.join(DATA_DIR, "data.csv")
 REF_ENERGY_CSV = os.path.join(DATA_DIR, "ref_energy.csv")
 
 
-def compute_delta_E(df: pd.DataFrame):
+def compute_delta_E(df: pd.DataFrame) -> Tuple[pd.DataFrame, float]:
+    """Function to add the column 'delta_E' to the raw data of a given structure, where 'delta_E' is the energy
+    difference to the so-called 'reference energy'. According to the convention of this project, the reference energy
+    is the result of the simulation with the largest input parameters.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Raw dataset for one structure with 'total_energy' column.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The original dataset with an additional column 'delta_E' containing the energy difference w.r.t the reference
+        energy.
+    ref_energy : float
+        reference energy for the given structure.
+
+    """
     idx_ref = 0
     for idx, row in df.loc[df["converged"]].iterrows():
         if (
@@ -44,6 +63,22 @@ def compute_delta_E(df: pd.DataFrame):
 
 
 def check_parsing(data_dir: str, savepath: str) -> bool:
+    """Helper function to verfy whether all the structures in the data directory have been parsed correctly. Avoids
+    costly reparsing.
+
+    Parameters
+    ----------
+    data_dir : str
+        Path to the data directory.
+    savepath : str
+        Path to the data.csv file, where the already parsed data is stored.
+
+    Returns
+    -------
+    bool
+        True, when all data is correctly parsed and present in the data.csv file.
+
+    """
     console = Console()
     p = Path(data_dir)
     structure_names = set()
@@ -92,6 +127,19 @@ def check_parsing(data_dir: str, savepath: str) -> bool:
 
 
 def print_data_summary(df: pd.DataFrame = None):
+    """Prints a summary of the so far parsed data.
+    
+
+    Parameters
+    ----------
+    df : pd.DataFrame, optional
+        Resulting data frame from parsing process. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
     # print a summary on the collected data
     console = Console()
     if df is None:
@@ -118,6 +166,29 @@ def parse_all_data_json(
     ref_energy_savepath: str,
     inv_k_density: bool = False,
 ) -> pd.DataFrame:
+    """Function to parse the json files in the data directory. It is assumed that in the data directory there is a
+    subdirectory for each structure containing a file named 'data.json' containing the simulation outputs. Furthermore,
+    the subdirectory for each structure should follow the naming convention in the project, that is;
+        <key of element1><nbr of element1 in structure><key of element2><nbr of element2 in structure>,
+    e.g. the subdirectory for Germanium-Telluride (GeTe) should be named Ge1Te1.
+
+    Parameters
+    ----------
+    data_dir : str
+        Path to the data directory.
+    data_savepath : str
+        Path to where the parsed data should be saved.
+    ref_energy_savepath : str
+        Path to where the reference energies should be saved to.
+    inv_k_density : bool, optional
+        Whether the k_density should be inverted in the resulting data frame. The default is False.
+
+    Returns
+    -------
+    res : pd.DataFrame
+        Data frame containing all the parsed data.
+
+    """
     list_df = []
     ref_energy_list = []
     p = Path(data_dir)
