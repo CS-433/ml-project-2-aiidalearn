@@ -32,7 +32,7 @@ To install them using pip, run the following command:
   - `code/sandbox`: notebooks for testing new ideas and debugging
   - `code/regression`: scripts training, evaluating and saving models for the different regression targets defined for this project.
   - `code/classification`: scripts training, evaluating and saving models for $\Delta E$ classification target (order of magnitude).
-  - `code/hyperparameter_tuning`: scripts for hyperparameter tuning for the different models. Use RandomizedSearchCV from the sklearn library to find the best hyperparameters for the different targets.
+  - `code/hyperparameter_tuning`: scripts for hyperparameter tuning for the different models. Use RandomizedSearchCV from the sklearn library to find the best hyperparameters for the different targets. Note that a standard machine might not be able to handle the computational effort of many iterations. 
   - `code/model_analysis`: notebooks for analyzing the predictions of the different models.
     - `code/model_analysis/baseline_analysis.ipynb`: analysis of the predictions of the different regression models.
     - `code/model_analysis/classification_decision_boundaries.ipynb`: generate figures displaying the decision boundaries of the $\Delta E$ classifer.
@@ -40,7 +40,6 @@ To install them using pip, run the following command:
 - `data`: contains all the data files. In this folder you may find subfolders with the name of structures which contain simulation results. You may also find 3 csv files:
   - `data/data.csv`: contains the data used for the project. This dataset is built using all the data from the structure folders.
   - `data/ref_energy.csv`: contains the reference energy for each structure.
-  - `data/sssp_data.csv`: contains data scraped from materialscloud.org. These data haven't been used in the project.
 - `models`: folder in which models trained are saved (python scripts from `code/regression` save their models in this folder).
 - `plots`: some plots are saved here.
 
