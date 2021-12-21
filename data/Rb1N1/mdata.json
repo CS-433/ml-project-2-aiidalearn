@@ -1,0 +1,1 @@
+[{"ecutrho":380,"k_density":0.125,"ecutwfc":40,"n_iterations":10,"time":59104.0,"converged":true,"accuracy":2.2e-11,"fermi":2.3684,"total_energy":-34.382756745},{"ecutrho":380,"k_density":0.1,"ecutwfc":55,"n_iterations":10,"time":156108.0,"converged":true,"accuracy":8.4e-10,"fermi":2.3681,"total_energy":-34.38298706}]
