@@ -217,4 +217,6 @@ if __name__ == "__main__":
 
         models = {"base model": base_model, "best model": best_model}
         train_models(models, X_train, logy_train, console)
-        evaluate_models_log(models, X_train, logy_train, test_sets, console)
+        evaluate_models_log(
+            models, X_train, logy_train, test_sets, target_transformer, console
+        )

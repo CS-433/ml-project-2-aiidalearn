@@ -15,7 +15,7 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_params
-from tools.train import train_models, evaluate_models
+from tools.train import evaluate_models, train_models
 from tools.utils import StructureEncoding, Target
 
 # Define global variables

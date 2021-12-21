@@ -44,7 +44,7 @@ def train_test_structure_split(
     structure_col: pd.Series, structure_set: Set[str], n_test_structures: int
 ):
     """
-    
+
 
     Parameters
     ----------
@@ -142,7 +142,7 @@ def base_loader(
 
 def get_columns(target: Target) -> Tuple[List[str], List[str]]:
     """Function that returns the column names of the columns that have to be dropped from the observations.
-    
+
     Parameters
     ----------
     target : Target
@@ -186,7 +186,7 @@ def data_loader(
 ) -> Tuple[np.ndarray, np.array, List[Tuple[str, np.ndarray, np.array]]]:
     """Data loading function returning the train set and optionally different test set. It internally calls the
     base_loader.
-    
+
 
     Parameters
     ----------

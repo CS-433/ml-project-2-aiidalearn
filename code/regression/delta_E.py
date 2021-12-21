@@ -18,7 +18,7 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_as_baseline, save_datasets, save_models
-from tools.train import evaluate_models, print_test_samples, train_models, print_problematic_samples
+from tools.train import evaluate_models, print_test_samples, train_models
 from tools.utils import StructureEncoding, Target, check_xgboost_gpu
 
 # Define global variables
@@ -111,11 +111,11 @@ def instantiate_models(console: Console):
             console.print("[italic bright_black]Using CPU for XGBoost")
 
         return {
-             "Dummy": DummyRegressor(),
-             "Linear": LinearRegression(),
+            "Dummy": DummyRegressor(),
+            "Linear": LinearRegression(),
             # "Augmented Linear": linear_augmented_model,
             "Random Forest": rf_model,
-             "XGBoost": xgb_model,
+            "XGBoost": xgb_model,
         }
 
 
@@ -126,7 +126,9 @@ if __name__ == "__main__":
     encodings = [StructureEncoding.ATOMIC]
     # encodings = list(StructureEncoding)
     for encoding in encodings:
-        console.log(f"[bold green]Started pipeline for {encoding.value} encoding")
+        console.log(
+            f"[bold green]Started pipeline for {encoding.value} encoding"
+        )
         target = Target.DELTA_E
         test_sets_cfg = [
             TestSet("Parameter gen.", size=0.1, split=TestSplit.ROW),
@@ -167,4 +169,3 @@ if __name__ == "__main__":
             MODELS_DIR,
             prompt_user,
         )
-

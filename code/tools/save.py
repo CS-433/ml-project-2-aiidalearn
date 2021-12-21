@@ -1,7 +1,6 @@
 import os
 import pickle
 import sys
-from typing import Dict, Tuple, List
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -25,7 +24,7 @@ def save_as_baseline(
     prompt_user=True,
 ):
     """Function to save console output to a html file to save baseline results in a reproducible way.
-    
+
 
     Parameters
     ----------
@@ -165,7 +164,7 @@ def save_params(
     params_dir: str,
 ):
     """Function to save console output for model parameters to an html file.
-    
+
 
     Parameters
     ----------
@@ -197,7 +196,7 @@ def load_saved_datasets(
     prompt_user=True,
 ) -> Tuple[np.ndarray, np.array, List[Tuple[str, np.ndarray, np.array]]]:
     """Function to reload datasets that have been saved using 'save_datasets'.
-    
+
 
     Parameters
     ----------

@@ -229,7 +229,9 @@ if __name__ == "__main__":
     encodings = [StructureEncoding.ATOMIC]
     # encodings = list(StructureEncoding)
     for encoding in encodings:
-        console.log(f"[bold green] Started training pipeline for {encoding.value} encoding")
+        console.log(
+            f"[bold green] Started training pipeline for {encoding.value} encoding"
+        )
         target = Target.DELTA_E
         target_transformer = CustomLogTargetTransformer()
         test_sets_cfg = [

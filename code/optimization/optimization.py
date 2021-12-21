@@ -3,14 +3,14 @@ import os
 import pickle
 import sys
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from rich.console import Console
 from rich.progress import track
-from sklearn.base import BaseEstimator
 from scipy.optimize import differential_evolution
+from sklearn.base import BaseEstimator, TransformerMixin
 
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
@@ -33,12 +33,12 @@ DATA_PATH = os.path.join(DATA_DIR, "data.csv")
 
 
 def load_models(
-        delta_E_model_name: str = None,
-        log_delta_E_model_name: str = None,
-        sim_time_model_name: str = None,
+    delta_E_model_name: str = None,
+    log_delta_E_model_name: str = None,
+    sim_time_model_name: str = None,
 ):
     """Function to load the pretrained models from their pickle files.
-    
+
 
     Parameters
     ----------
@@ -119,14 +119,14 @@ def sanitize_input(x: np.array) -> np.array:
 
 
 def delta_E_prediction(
-        x: np.array,
-        model: BaseEstimator,
-        structure_encoding: np.array,
-        delta_E_features: List[str]
+    x: np.array,
+    model: BaseEstimator,
+    structure_encoding: np.array,
+    delta_E_features: List[str],
 ) -> float:
     """Wrapper around BaseModel.predict() for the predictor of ∆E. This function is used to fix the structure and the
     encoding but vary the parameters ["ecutrho", "k_density", "ecutwfc"].
-    
+
 
     Parameters
     ----------
@@ -145,16 +145,18 @@ def delta_E_prediction(
         prediction of ∆E.
 
     """
-    input = np.concatenate([x, structure_encoding])
-    input = pd.DataFrame(input.reshape(1, -1), columns=delta_E_features)
-    return model.predict(input)[0]
+    input_value = np.concatenate([x, structure_encoding])
+    input_value = pd.DataFrame(
+        input_value.reshape(1, -1), columns=delta_E_features
+    )
+    return model.predict(input_value)[0]
 
 
 def sim_time_prediction(
-        x: np.array,
-        model: BaseEstimator,
-        structure_encoding: np.array,
-        sim_time_features: List[str]
+    x: np.array,
+    model: BaseEstimator,
+    structure_encoding: np.array,
+    sim_time_features: List[str],
 ) -> float:
     """Wrapper around BaseModel.predict() for the predictor of sim_time. This function is used to fix the structure
      and the encoding but vary the parameters ["ecutrho", "k_density", "ecutwfc"].
@@ -177,25 +179,27 @@ def sim_time_prediction(
         prediction of sim_time.
 
     """
-    input = np.concatenate([x, structure_encoding])
-    input = pd.DataFrame(input.reshape(1, -1), columns=sim_time_features)
-    return model.predict(input)[0]
+    input_value = np.concatenate([x, structure_encoding])
+    input_value = pd.DataFrame(
+        input_value.reshape(1, -1), columns=sim_time_features
+    )
+    return model.predict(input_value)[0]
 
 
 def get_optimal_parameters(
-        structure_name: str,
-        max_delta_E: float,
-        encoding_delta_E: StructureEncoding,
-        encoding_sim_time: StructureEncoding,
-        feature_bounds: dict,
-        delta_E_model: BaseEstimator = None,
-        sim_time_model: BaseEstimator = None,
-        log_delta_E_model: BaseEstimator = None,
-        transformer: Transformer = None,
-        verbose: bool = False,
+    structure_name: str,
+    max_delta_E: float,
+    encoding_delta_E: StructureEncoding,
+    encoding_sim_time: StructureEncoding,
+    feature_bounds: dict,
+    delta_E_model: BaseEstimator = None,
+    sim_time_model: BaseEstimator = None,
+    log_delta_E_model: BaseEstimator = None,
+    transformer: TransformerMixin = None,
+    verbose: bool = False,
 ) -> Tuple[np.array, float, float]:
     """
-    
+
 
     Parameters
     ----------
@@ -253,6 +257,7 @@ def get_optimal_parameters(
     )
 
     if delta_E_model is not None:
+
         def delta_E_pred_func(x):
             """Function to make a prediction of delta_E for a fixed structure
             """
@@ -295,10 +300,10 @@ def get_optimal_parameters(
         """Function to be optimizied to solve the penalized problem. Penalization can be adjusted by changing 'mu'.
         """
         return (
-                sim_time_pred_func(sanitize_input(x))
-                + mu
-                * max(delta_E_pred_func(sanitize_input(x)) - max_delta_E, 0)
-                / max_delta_E
+            sim_time_pred_func(sanitize_input(x))
+            + mu
+            * max(delta_E_pred_func(sanitize_input(x)) - max_delta_E, 0)
+            / max_delta_E
         )
 
     res = differential_evolution(
@@ -390,7 +395,7 @@ if __name__ == "__main__":
     max_delta_E_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
     predictions = []
     for structure_name in track(
-            structure_list, description="Optimizing parameters...", console=console
+        structure_list, description="Optimizing parameters...", console=console
     ):
         for max_delta_E in max_delta_E_list:
             console.print(
@@ -423,7 +428,7 @@ if __name__ == "__main__":
 
     # saving in json format
     with open(
-            os.path.join(os.path.dirname(__file__), "optimization_results.json"),
-            "w",
+        os.path.join(os.path.dirname(__file__), "optimization_results.json"),
+        "w",
     ) as f:
         json.dump(predictions, f, indent=2)

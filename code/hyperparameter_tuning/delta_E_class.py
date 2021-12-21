@@ -15,10 +15,7 @@ ROOT_DIR = os.path.dirname(
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
 from tools.save import save_params
-from tools.train import (
-    evaluate_classifiers,
-    train_models,
-)
+from tools.train import evaluate_classifiers, train_models
 from tools.transform import TargetMagnitudeTransformer
 from tools.utils import StructureEncoding, Target
 

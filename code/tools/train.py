@@ -1,20 +1,19 @@
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 from rich.console import Console
 from rich.table import Table
 from sklearn.base import BaseEstimator
 from sklearn.metrics import (
+    accuracy_score,
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_error,
-    accuracy_score,
 )
-
-from sklearn.model_selection import cross_validate, KFold
+from sklearn.model_selection import KFold, cross_validate
 
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
@@ -22,17 +21,16 @@ ROOT_DIR = os.path.dirname(
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.utils import custom_mape, percentile_absolute_percentage_error
-from tools.transform import magnitude_transform
 
 
 def train_models(
-        models: Dict[BaseEstimator],
-        X_train: np.ndarray,
-        y_train: np.array,
-        console: Console
+    models: Dict[BaseEstimator],
+    X_train: np.ndarray,
+    y_train: np.array,
+    console: Console,
 ) -> object:
     """Wrapper around the sklearn.BaseEstimator method 'fit' with logging functionality.
-    
+
 
     Parameters
     ----------
@@ -58,16 +56,16 @@ def train_models(
 
 
 def evaluate_models(
-        models: Dict[BaseEstimator, str],
-        X_train: np.ndarray,
-        y_train: np.array,
-        test_sets: List[Tuple[str, np.ndarray, np.array]],
-        console: Console
+    models: Dict[BaseEstimator, str],
+    X_train: np.ndarray,
+    y_train: np.array,
+    test_sets: List[Tuple[str, np.ndarray, np.array]],
+    console: Console,
 ):
     """Wrapper around the sklearn.BaseEstimator method 'predict' and scoring metrics for REGRESSION MODELS
      with logging functionality. Works well in combination with 'tools.save.save_as_baseline'. For CLASSIFIERS see
      'evaluate_classifiers'.
-    
+
 
     Parameters
     ----------
@@ -143,12 +141,12 @@ def evaluate_classifiers(
     X_train: np.ndarray,
     y_train: np.array,
     test_sets: List[Tuple[str, np.ndarray, np.array]],
-    console: Console
+    console: Console,
 ):
     """Wrapper around the sklearn.BaseEstimator method 'predict' and scoring metrics for CLASSIFIERS
      with logging functionality. Works well in combination with 'tools.save.save_as_baseline'. For REGRESSION MODELS see
      'evaluate_models'.
-    
+
 
     Parameters
     ----------
@@ -221,7 +219,7 @@ def cv_classifiers(
     y_train: np.array,
     console: Console,
     ncv=5,
-    shuffle=False
+    shuffle=False,
 ):
     """Wrapper around sklearn.model_selection.cross_validate and  ..KFold to cross-validate multiple classifiers with
     logging to console. Also works with 'tools.save.save_as_baseline' to save the console output as html. Note that
@@ -292,10 +290,10 @@ def print_test_samples(
     models: Dict[BaseEstimator],
     test_sets: List[Tuple[str, np.ndarray, np.array]],
     console: Console,
-    n_sample=10
+    n_sample=10,
 ):
     """Print function for output of sample predictions for manual inspection.
-    
+
 
     Parameters
     ----------
@@ -340,14 +338,14 @@ def print_test_samples(
 
 
 def print_problematic_samples(
-        models: Dict[BaseEstimator],
-        test_sets: List[Tuple[str, np.ndarray, np.array]],
-        console: Console,
-        elts: List[str],
-        n_sample: object = 10
+    models: Dict[BaseEstimator],
+    test_sets: List[Tuple[str, np.ndarray, np.array]],
+    console: Console,
+    elts: List[str],
+    n_sample: object = 10,
 ):
     """Print function for output of sample predictions for manual inspection of suspicious elements.
-    
+
 
     Parameters
     ----------
