@@ -18,7 +18,6 @@ To install them using pip, run the following command:
 - `code`
   - `code/data_scraping`:
     - julia scripts for launching simulations
-    - python scripts for scraping data from materialscloud.org
   - `code/data_preprocessing`: scripts to preprocess the data
     - julia scripts
       - parse simulation results to json files
@@ -32,7 +31,7 @@ To install them using pip, run the following command:
   - `code/sandbox`: notebooks for testing new ideas and debugging
   - `code/regression`: scripts training, evaluating and saving models for the different regression targets defined for this project.
   - `code/classification`: scripts training, evaluating and saving models for $\Delta E$ classification target (order of magnitude).
-  - `code/hyperparameter_tuning`: scripts for hyperparameter tuning for the different models. Use RandomizedSearchCV from the sklearn library to find the best hyperparameters for the different targets. Note that a standard machine might not be able to handle the computational effort of many iterations. 
+  - `code/hyperparameter_tuning`: scripts for hyperparameter tuning for the different models. Use RandomizedSearchCV from the sklearn library to find the best hyperparameters for the different targets. Note that a standard machine might not be able to handle the computational effort of many iterations.
   - `code/model_analysis`: notebooks for analyzing the predictions of the different models.
     - `code/model_analysis/baseline_analysis.ipynb`: analysis of the predictions of the different regression models.
     - `code/model_analysis/classification_decision_boundaries.ipynb`: generate figures displaying the decision boundaries of the $\Delta E$ classifer.
