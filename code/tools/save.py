@@ -3,11 +3,12 @@ import pickle
 import sys
 from typing import Dict, Tuple, List
 from pathlib import Path
-from sklearn.base import BaseEstimator
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from rich.console import Console
+from sklearn.base import BaseEstimator
 
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
@@ -158,7 +159,10 @@ def save_datasets(
 
 
 def save_params(
-    encoding: StructureEncoding, target: Target, console: Console, params_dir: str,
+    encoding: StructureEncoding,
+    target: Target,
+    console: Console,
+    params_dir: str,
 ):
     """Function to save console output for model parameters to an html file.
     

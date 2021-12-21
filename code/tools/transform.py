@@ -69,7 +69,7 @@ def magnitude_inv(n: int) -> float:
 
 def magnitude_transform(a: np.array) -> np.array:
     """Vectorized version of magnitude
-    
+
 
     Parameters
     ----------
@@ -82,12 +82,12 @@ def magnitude_transform(a: np.array) -> np.array:
         Neg. magnitudes of numbers in a.
 
     """
-    return -np.vectorize(magnitude)(a)
+    return np.vectorize(magnitude)(a)
 
 
 def magnitude_inv_transform(a: np.array) -> np.array:
     """Vectorized version of magnitude_inf
-    
+
 
     Parameters
     ----------
