@@ -2,7 +2,7 @@ import os
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -43,6 +43,28 @@ class TestSet:
 def train_test_structure_split(
     structure_col: pd.Series, structure_set: Set[str], n_test_structures: int
 ):
+    """
+    
+
+    Parameters
+    ----------
+    structure_col : pd.Series
+        DESCRIPTION.
+    structure_set : Set[str]
+        DESCRIPTION.
+    n_test_structures : int
+        DESCRIPTION.
+
+    Returns
+    -------
+    train_mask : TYPE
+        DESCRIPTION.
+    test_mask : TYPE
+        DESCRIPTION.
+    species_train_set : TYPE
+        DESCRIPTION.
+
+    """
     np.random.seed(42)
     species_test_set = set(
         np.random.choice(
@@ -60,12 +82,40 @@ def train_test_structure_split(
 
 
 def base_loader(
-    data_path,
+    data_path: str,
     cols_target: List[str],
     structure_encoding: StructureEncoding = None,
     cols_trash: List[str] = None,
     remove_ref_rows: bool = False,
-):
+) -> Tuple[np.ndarray, np.array, pd.Series, pd.Series]:
+    """Basic data loading function which encodes the chemical structure and identifies the dependent and independent
+    variables.
+
+    Parameters
+    ----------
+    data_path : str
+        Path to the.csv data file.
+    cols_target : List[str]
+        List with the target column(s).
+    structure_encoding : StructureEncoding, optional
+        Encoding for the chemical structures, see tools.utils for details. The default is None.
+    cols_trash : List[str], optional
+        Unused columns that shoud be dropped from the dataset. The default is None.
+    remove_ref_rows : bool, optional
+        Whether to remove the rows containing the datapoints with the reference energy. The default is False.
+
+    Returns
+    -------
+    X_raw :  np.ndarray
+        raw observation data.
+    y_raw : np.array
+        raw target data.
+    pd.Series
+        Series containing the raw structure strings.
+    pd.Series
+        Boolean Series containing the convergence success marker.
+
+    """
     df = pd.read_csv(data_path, index_col=0, na_filter=False)
 
     if structure_encoding is not None:
@@ -90,7 +140,22 @@ def base_loader(
     return X_raw, y_raw, df["structure"], df["converged"]
 
 
-def get_columns(target):
+def get_columns(target: Target) -> Tuple[List[str], List[str]]:
+    """Function that returns the column names of the columns that have to be dropped from the observations.
+
+    Parameters
+    ----------
+    target : Target
+        Marker for the target variable.
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+        Tuple of two lists
+        1) List of column names of trash columns -> can be dropped both from observations and target.
+        2) List of column names of target columns
+
+    """
     cols_trash = [
         "structure",
         "accuracy",
@@ -118,7 +183,42 @@ def data_loader(
     target_transformer: TransformerMixin = None,
     console: Console = None,
     remove_ref_rows: bool = False,
-):
+) -> Tuple[np.ndarray, np.array, List[Tuple[str, np.ndarray, np.array]]]:
+    """Data loading function returning the train set and optionally different test set. It internally calls the
+    base_loader.
+    
+
+    Parameters
+    ----------
+    target : Target, optional
+        Marker for the target variable. The default is Target.DELTA_E.
+    encoding : StructureEncoding, optional
+        Marker for the desired encoding of the chemical structures. The default is StructureEncoding.COLUMN_MASS.
+    data_path : str, optional
+        Path to the data directory. The default is DATA_PATH, i.e. the data directory in the repository.
+    test_sets_cfg : List[TestSet], optional
+        List of test set configurations. The default is None.
+    target_transformer : TransformerMixin, optional
+        Transformer for the target variable, e.g. log or magnitude. The default is None.
+    console : Console, optional
+        Console object for convenient logging. The default is None.
+    remove_ref_rows : bool, optional
+        Whether to remove the rows containing the datapoints with the reference energy, cf. base_loader.
+        The default is False.
+
+    Returns
+    -------
+    X_train : np.ndarray
+        Dependent variables of the train set.
+    y_train : np.array
+        Independent variables of the test set.
+    test_sets : List[Tuple[str, np.ndarray, np.array]]
+        List of tuples for each test set with
+        - namestring
+        - X_test
+        - y_test.
+
+    """
     if console is None:
         console = Console()
     with console.status("") as status:

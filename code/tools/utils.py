@@ -11,7 +11,19 @@ import xgboost as xgb
 from natsort import natsorted
 
 
-def load_json(filepath: str):
+def load_json(filepath: str) -> Dict:
+    """Wrapper of json.load function
+
+    Parameters
+    ----------
+    filepath : str
+
+    Returns
+    -------
+    Dict
+        Data stored in the json file.
+
+    """
     with open(filepath) as file:
         data = json.load(file)
     return data
@@ -59,7 +71,25 @@ def extract_structure_elements(structure_name: str) -> Dict[str, int]:
     return dict(elements_nbrs)
 
 
-def get_structure_encoding(structure_name, encoding) -> np.ndarray:
+def get_structure_encoding(
+    structure_name: str, encoding: StructureEncoding
+) -> np.ndarray:
+    """Function to get the encoding of one chemical structure.
+
+
+    Parameters
+    ----------
+    structure_name : str
+        Name of the chemical structure that should be encoded, e.g. AgCl or Rb2O2.
+    encoding : StructureEncoding
+        Encoding for the chemical structure.
+
+    Returns
+    -------
+    res : np.array
+        array with entries corresponding to the columns in the chosen encoding.
+
+    """
     periodic_elt_list = list(PERIODIC_TABLE_INFO.keys())
     if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         res = np.zeros(len(PTC_COLNAMES) + 1)
@@ -106,7 +136,23 @@ def get_structure_encoding(structure_name, encoding) -> np.ndarray:
 
 def encode_all_structures(
     df: pd.DataFrame, encoding: StructureEncoding,
-):
+) -> pd.DataFrame:
+    """Function to encode all structures in a dataset
+
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset with a column "structure", where the structure names are stored.
+    encoding : StructureEncoding
+        Encoding for the chemical structures.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The same dataframe with the columns storing the encoding added.
+
+    """
     if encoding in [StructureEncoding.COLUMN, StructureEncoding.COLUMN_MASS]:
         for colname in PTC_COLNAMES:
             df = df.assign(**{colname: 0.0})
@@ -161,7 +207,22 @@ def encode_all_structures(
     return df
 
 
-def parse_valence_band(valence_band_str):
+def parse_valence_band(valence_band_str: str) -> Dict[str, float]:
+    """Function that parses a string containing the valence configuration of an atom to a dictionary, e.g. for carbon
+    one has 2s^2-2p^2 -> {"s" : 2, "p" : 2, "d" : 0, "f" : 0, "outermost" : 2}.
+
+    Parameters
+    ----------
+    valence_band_str : str
+        String containing the valence configuration of an atom.
+
+    Returns
+    -------
+    Dict[str, float]
+        Dictionary containing the parsed valence configuration with an entry for s,p,d,f electrons and the outermost
+        shell.
+
+    """
     orbitals = valence_band_str.split("-")
     valence_band = {"s": 0.0, "p": 0.0, "d": 0.0, "f": 0.0, "outermost": 0.0}
     for orbital_str in orbitals:
@@ -174,7 +235,25 @@ def parse_valence_band(valence_band_str):
     return valence_band
 
 
-def custom_mape(y_true, y_pred, shift=False):
+def custom_mape(y_true: np.array, y_pred: np.array, shift=False) -> float:
+    """
+
+
+    Parameters
+    ----------
+    y_true : np.array
+        DESCRIPTION.
+    y_pred : np.array
+        DESCRIPTION.
+    shift : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    float
+        DESCRIPTION.
+
+    """
     if shift:
         miny2 = sorted(set(np.array(y_true).flatten()))[:2]
         bias = -miny2[0] + (miny2[1] - miny2[0]) / 10
@@ -190,17 +269,62 @@ def custom_mape(y_true, y_pred, shift=False):
     )
 
 
-def absolute_percentage_error(y_true, y_pred):
+def absolute_percentage_error(y_true: np.array, y_pred: np.array) -> float:
+    """
+
+
+    Parameters
+    ----------
+    y_true : np.array
+        DESCRIPTION.
+    y_pred : np.array
+        DESCRIPTION.
+
+    Returns
+    -------
+    float
+        DESCRIPTION.
+
+    """
     epsilon = np.finfo(np.float64).eps
     return np.abs(y_pred - y_true) / np.maximum(np.abs(y_true), epsilon)
 
 
-def percentile_absolute_percentage_error(y_true, y_pred, percentile=50):
+def percentile_absolute_percentage_error(
+    y_true: np.array, y_pred: np.array, percentile=50
+) -> float:
+    """
+
+
+    Parameters
+    ----------
+    y_true : np.array
+        DESCRIPTION.
+    y_pred : np.array
+        DESCRIPTION.
+    percentile : TYPE, optional
+        DESCRIPTION. The default is 50.
+
+    Returns
+    -------
+    float
+        DESCRIPTION.
+
+    """
     ape = absolute_percentage_error(y_true, y_pred)
     return np.percentile(ape, percentile)
 
 
-def check_xgboost_gpu():
+def check_xgboost_gpu() -> bool:
+    """Function to check whether GPU is available to train XGB models. Avoids crash of training pipeline if the
+    properties of the machine are unclear.
+
+    Returns
+    -------
+    bool
+        True if gpu is avalable.
+
+    """
     try:
         xgb_model = xgb.XGBRegressor(tree_method="gpu_hist")
         xgb_model.fit(np.array([[1, 2, 3]]), np.array([[1]]))

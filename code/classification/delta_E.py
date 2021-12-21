@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import xgboost as xgb
 from rich.console import Console
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.dummy import DummyClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(str(Path(__file__).absolute())))
@@ -14,16 +14,15 @@ ROOT_DIR = os.path.dirname(
 
 sys.path.append(os.path.join(ROOT_DIR, "code"))
 from tools.data_loader import TestSet, TestSplit, data_loader
-from tools.save import save_as_baseline, save_models, save_datasets
+from tools.save import save_as_baseline, save_datasets, save_models
 from tools.train import (
+    cv_classifiers,
     evaluate_classifiers,
     print_test_samples,
-    cv_classifiers,
     train_models,
 )
-from tools.utils import StructureEncoding, Target, check_xgboost_gpu
 from tools.transform import TargetMagnitudeTransformer
-
+from tools.utils import StructureEncoding, Target, check_xgboost_gpu
 
 # Define global variables
 DATA_DIR = os.path.join(ROOT_DIR, "data/")
@@ -61,7 +60,7 @@ def instantiate_models(console: Console):
         return {
             # "Dummy" : DummyClassifier(),
             "Random Forest": rf_model,
-            # "XGBoost": xgb_model,
+            "XGBoost": xgb_model,
         }
 
 
@@ -92,6 +91,8 @@ if __name__ == "__main__":
             console=console,
             remove_ref_rows=True,
         )
+
+        console.print(f"Class labels: {np.unique(y_train.to_numpy())}")
         models = instantiate_models(console)
         train_models(models, X_train, y_train, console)
         evaluate_classifiers(models, X_train, y_train, test_sets, console)
@@ -106,7 +107,7 @@ if __name__ == "__main__":
                 models["Random Forest"],
                 "random_forest_model.pkl",
             ),
-            # "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+            "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
         }
         save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
