@@ -5,6 +5,7 @@
 This project aims at predicting both the energy accuracy and the simulation duration of a DFT simulation for a given set of input parameters and a prescribed chemical structure. Furthermore, we have implemented an approach to solve the inverse problem, i.e. to generate a set of computationally optimal input parameters for a prescribed chemical structure and energy accuracy.
 
 This repository contains all the code used during the course of the project, including:
+
 - scripts to prepare and launch DFT simulations on the EPFL cluster Fidis (Note that access credentials as well as computing time budget are required to launch them)
 - scripts to parse the data from the JSON file and assemble it to the final raw dataset, i.e. with the chemical structures only given as strings
 - scripts to assemble the final dataset for different encodings of the chemical structures. These datasets are not saved, but only assembled ad-hoc when they are needed. However, the data loading routines are factored out into a python model (see `code/tools/`), such that it is simple to retrieve them for other purposes.
@@ -60,6 +61,8 @@ The terminal output of all these commands is saved in `hyperparameter_tuning` fo
 ### Optimizing simulation parameters
 
 Before executing any commands in this section, please make sure you trained and saved the models using the commands in the training models section.
+
+The results of the optimization are saved in `code/optimization/optimization_results.json` file.
 
     python3 code/optimization/optimization.py
 

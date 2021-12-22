@@ -34,7 +34,7 @@ def train_models(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator]
+    models : Dict[str, BaseEstimator]
         Dictionary of models
     X_train : np.ndarray
         Train set.
@@ -56,7 +56,7 @@ def train_models(
 
 
 def evaluate_models(
-    models: Dict[BaseEstimator, str],
+    models: Dict[str, BaseEstimator],
     X_train: np.ndarray,
     y_train: np.array,
     test_sets: List[Tuple[str, np.ndarray, np.array]],
@@ -69,7 +69,7 @@ def evaluate_models(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator]
+    models : Dict[str, BaseEstimator]
         Dictionary of models
     X_train : np.ndarray
         Train set.
@@ -137,7 +137,7 @@ def evaluate_models(
 
 
 def evaluate_classifiers(
-    models: Dict[BaseEstimator, str],
+    models: Dict[str, BaseEstimator],
     X_train: np.ndarray,
     y_train: np.array,
     test_sets: List[Tuple[str, np.ndarray, np.array]],
@@ -150,7 +150,7 @@ def evaluate_classifiers(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator]
+    models : Dict[str, BaseEstimator]
         Dictionary of models
     X_train : np.ndarray
         Train set.
@@ -214,7 +214,7 @@ def evaluate_classifiers(
 
 
 def cv_classifiers(
-    models: Dict[BaseEstimator, str],
+    models: Dict[str, BaseEstimator],
     X_train: np.ndarray,
     y_train: np.array,
     console: Console,
@@ -228,7 +228,7 @@ def cv_classifiers(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator]
+    models : Dict[str, BaseEstimator]
         Dictionary of models
     X_train : np.ndarray
         Train set.
@@ -297,7 +297,7 @@ def print_test_samples(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator, str]
+    models : Dict[str, BaseEstimator]
         Dictionary of models.
     test_sets : List[Tuple[str, np.ndarray, np.array]]
         List of test sets.
@@ -349,7 +349,7 @@ def print_problematic_samples(
 
     Parameters
     ----------
-    models : Dict[BaseEstimator, str]
+    models : Dict[str, BaseEstimator]
         Dictionary of models.
     test_sets : List[Tuple[str, np.ndarray, np.array]]
         List of test sets.
