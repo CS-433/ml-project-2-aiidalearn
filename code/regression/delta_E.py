@@ -115,7 +115,7 @@ def instantiate_models(console: Console):
             "Linear": LinearRegression(),
             # "Augmented Linear": linear_augmented_model,
             "Random Forest": rf_model,
-            "XGBoost": xgb_model,
+            # "XGBoost": xgb_model,
         }
 
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
                 models["Random Forest"],
                 "random_forest_model.pkl",
             ),
-            "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
+            # "XGBoost": (models["XGBoost"], "xgboost_model.pkl"),
         }
         save_models(models_to_save, encoding, console, MODELS_DIR, prompt_user)
 
