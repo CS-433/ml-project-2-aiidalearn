@@ -24,7 +24,7 @@ from tools.utils import custom_mape, percentile_absolute_percentage_error
 
 
 def train_models(
-    models: Dict[BaseEstimator],
+    models: Dict[str, BaseEstimator],
     X_train: np.ndarray,
     y_train: np.array,
     console: Console,
@@ -287,7 +287,7 @@ def cv_classifiers(
 
 
 def print_test_samples(
-    models: Dict[BaseEstimator],
+    models: Dict[str, BaseEstimator],
     test_sets: List[Tuple[str, np.ndarray, np.array]],
     console: Console,
     n_sample=10,
@@ -338,7 +338,7 @@ def print_test_samples(
 
 
 def print_problematic_samples(
-    models: Dict[BaseEstimator],
+    models: Dict[str, BaseEstimator],
     test_sets: List[Tuple[str, np.ndarray, np.array]],
     console: Console,
     elts: List[str],

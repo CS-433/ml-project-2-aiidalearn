@@ -55,7 +55,7 @@ def save_as_baseline(
 
 
 def save_models(
-    models: Dict[Tuple[BaseEstimator, str]],
+    models: Dict[str, BaseEstimator],
     encoding: StructureEncoding,
     console: Console,
     models_dir: str,
