@@ -224,7 +224,7 @@ def print_test_samples_log(
 
 if __name__ == "__main__":
     console = Console(record=True)
-    prompt_user = False
+    prompt_user = True
 
     encodings = [StructureEncoding.ATOMIC]
     # encodings = list(StructureEncoding)
