@@ -31,13 +31,11 @@ This command generates one `data.csv` with all `data.json` files from the subfol
 
     python3 code/data_preprocessing/parsing_utils.py
 
-Note: since all the data are already parsed, running the following command is not necessary.
+Note: since all the data are already parsed, running the previous command is not necessary.
 
 ### Training models
 
-The trained models and the datasets they were training/testing on are saved in `models` folder.
-
-The terminal output of all these commands is saved in `baselines` folder.
+After the following commands are run, the trained models and the datasets they were training/testing on are saved in `models` folder.
 
 #### Regression models
 
@@ -49,14 +47,16 @@ The terminal output of all these commands is saved in `baselines` folder.
 
     python3 code/classification/delta_E.py
 
-### Finetuning models
+Note: the terminal output of all these commands is automatically saved in `baselines` folder in HTML format.
 
-The terminal output of all these commands is saved in `hyperparameter_tuning` folder.
+### Finetuning models
 
     python3 code/hyperparameter_tuning/delta_E_class.py
     python3 code/hyperparameter_tuning/delta_E_reg.py
     python3 code/hyperparameter_tuning/log_delta_E.py
     python3 code/hyperparameter_tuning/sim_time.py
+
+Note: the terminal output of all these commands is automatically saved in `hyperparameter_tuning` folder in HTML format.
 
 ### Optimizing simulation parameters
 
