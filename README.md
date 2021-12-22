@@ -10,7 +10,50 @@ All the requirements to run this project can be found in `requirements.txt`.
 
 To install them using pip, run the following command:
 
-    pip install -r requirements.txt
+    pip3 install -r requirements.txt
+
+## Reproducing report results
+
+Please place you at the root of the project before running the following commands.
+
+### Parsing the data (optional)
+
+This command generates one `data.csv` with all `data.json` files from the subfolders inside `data`:
+
+    python3 code/data_preprocessing/parsing_utils.py
+
+Note: since all the data are already parsed, running the following command is not necessary.
+
+### Training models
+
+The trained models and the datasets they were training/testing on are saved in `models` folder.
+
+The terminal output of all these commands is saved in `baselines` folder.
+
+#### Regression models
+
+    python3 code/regression/delta_E.py
+    python3 code/regression/log_delta_E.py
+    python3 code/regression/sim_time.py
+
+#### Classification models
+
+    python3 code/classification/delta_E.py
+
+### Finetuning models
+
+The terminal output of all these commands is saved in `hyperparameter_tuning` folder.
+
+    python3 code/hyperparameter_tuning/delta_E_class.py
+    python3 code/hyperparameter_tuning/delta_E_reg.py
+    python3 code/hyperparameter_tuning/log_delta_E.py
+    python3 code/hyperparameter_tuning/sim_time.py
+
+### Optimizing simulation parameters
+
+Before executing any commands in this section, please make sure you trained and saved the models using the commands in the training models section.
+
+    python3 code/optimization/optimization.py
 
 ## Folders and Files
 
