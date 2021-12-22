@@ -90,6 +90,7 @@ The results of the optimization are saved in `code/optimization/optimization_res
     - `code/model_analysis/baseline_analysis.ipynb`: analysis of the predictions of the different regression models.
     - `code/model_analysis/classification_decision_boundaries.ipynb`: generate figures displaying the decision boundaries of the $\Delta E$ classifer.
   - `code/optimization`: contains a script implementing the simulation parameter optimization procedure described in the report.
+  - `code/visualization`: contains a script to efficiently plot the decision boundary of the classifier for a given structure (cf. classification_decision_boundaries.ipynb
 - `data`: contains all the data files. In this folder you may find subfolders with the name of structures which contain simulation results. You may also find 3 csv files:
   - `data/data.csv`: contains the data used for the project. This dataset is built using all the data from the structure folders.
   - `data/ref_energy.csv`: contains the reference energy for each structure.
