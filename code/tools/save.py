@@ -55,7 +55,7 @@ def save_as_baseline(
 
 
 def save_models(
-    models: Dict[Tuple[BaseEstimator, str]],
+    models: Dict[str, Tuple[BaseEstimator, str]],
     encoding: StructureEncoding,
     console: Console,
     models_dir: str,
@@ -68,7 +68,7 @@ def save_models(
 
     Parameters
     ----------
-    models : Dict[Tuple[BaseEstimator, str]]
+    models : Dict[str, Tuple[BaseEstimator, str]]
         Dictionary of tuples containing a model object and a string for the filename.
     encoding : StructureEncoding
         Chosen encoding for the chemical structures. The model will be saved to a corresponding subdirectory.

@@ -332,7 +332,7 @@ def get_optimal_parameters(
     return x_f, sim_time, delta_E
 
 
-def get_feature_bounds(data_path: str) -> Dict[Tuple[float, float]]:
+def get_feature_bounds(data_path: str) -> Dict[str, Tuple[float, float]]:
     """Helper function that determines the domain of the parameters ["ecutrho", "k_density", "ecutwfc"] in the dataset.
     This is necessary since Random Forest Model by definition cannot extrapolate. Therefore, the optimizer can only
     search for optimal parameters within these bounds.
@@ -344,8 +344,8 @@ def get_feature_bounds(data_path: str) -> Dict[Tuple[float, float]]:
 
     Returns
     -------
-    Dict[Tuple[float, float]]
-        Dictionary with an entry for each parameter in["ecutrho", "k_density", "ecutwfc"] with upper and lower bound.
+    Dict[str, Tuple[float, float]]
+        Dictionary with an entry for each parameter in ["ecutrho", "k_density", "ecutwfc"] with upper and lower bound.
 
     """
     data = pd.read_csv(data_path, na_filter=False)

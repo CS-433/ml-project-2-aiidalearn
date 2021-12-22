@@ -2,7 +2,16 @@
 
 ## Project Description
 
-TODO: Write a description of the project.
+This project aims at predicting both the energy accuracy and the simulation duration of a DFT simulation for a given set of input parameters and a prescribed chemical structure. Furthermore, we have implemented an approach to solve the inverse problem, i.e. to generate a set of computationally optimal input parameters for a prescribed chemical structure and energy accuracy.
+
+This repository contains all the code used during the course of the project, including:
+
+- scripts to prepare and launch DFT simulations on the EPFL cluster Fidis (Note that access credentials as well as computing time budget are required to launch them)
+- scripts to parse the data from the JSON file and assemble it to the final raw dataset, i.e. with the chemical structures only given as strings
+- scripts to assemble the final dataset for different encodings of the chemical structures. These datasets are not saved, but only assembled ad-hoc when they are needed. However, the data loading routines are factored out into a python model (see `code/tools/`), such that it is simple to retrieve them for other purposes.
+- scripts to train our models
+- notebooks to explore the data and analyse our models
+- scripts to create the plots in the report
 
 ## Requirements
 
@@ -10,7 +19,52 @@ All the requirements to run this project can be found in `requirements.txt`.
 
 To install them using pip, run the following command:
 
-    pip install -r requirements.txt
+    pip3 install -r requirements.txt
+
+## Reproducing report results
+
+Please place you at the root of the project before running the following commands.
+
+### Parsing the data (optional)
+
+This command generates one `data.csv` with all `data.json` files from the subfolders inside `data`:
+
+    python3 code/data_preprocessing/parsing_utils.py
+
+Note: since all the data are already parsed, running the previous command is not necessary.
+
+### Training models
+
+After the following commands are run, the trained models and the datasets they were training/testing on are saved in `models` folder.
+
+#### Regression models
+
+    python3 code/regression/delta_E.py
+    python3 code/regression/log_delta_E.py
+    python3 code/regression/sim_time.py
+
+#### Classification models
+
+    python3 code/classification/delta_E.py
+
+Note: the terminal output of all these commands is automatically saved in `baselines` folder in HTML format.
+
+### Finetuning models
+
+    python3 code/hyperparameter_tuning/delta_E_class.py
+    python3 code/hyperparameter_tuning/delta_E_reg.py
+    python3 code/hyperparameter_tuning/log_delta_E.py
+    python3 code/hyperparameter_tuning/sim_time.py
+
+Note: the terminal output of all these commands is automatically saved in `hyperparameter_tuning` folder in HTML format.
+
+### Optimizing simulation parameters
+
+Before executing any commands in this section, please make sure you trained and saved the models using the commands in the training models section.
+
+The results of the optimization are saved in `code/optimization/optimization_results.json` file.
+
+    python3 code/optimization/optimization.py
 
 ## Folders and Files
 
